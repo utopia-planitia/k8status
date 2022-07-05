@@ -1,61 +1,74 @@
 package k8status
 
 import (
+	"errors"
+	"fmt"
+	"os"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"path/filepath"
 )
 
-type KubeClient struct {
-	clientset  *kubernetes.Clientset
-	restconfig *rest.Config
+const (
+	inClusterSentinalFile = "/run/secrets/kubernetes.io/serviceaccount/namespace"
+)
+
+func KubernetesClient(kubeconfigFile string) (*rest.Config, *kubernetes.Clientset, error) {
+	restconfig, err := restConfig(kubeconfigFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load kubernetes client config: %v", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(restconfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("setup kubernetes client: %v", err)
+	}
+
+	return restconfig, clientset, nil
 }
 
-func GetClientSet() (*kubernetes.Clientset, error) {
-	home, err := os.UserHomeDir()
+func restConfig(kubeConfigFile string) (*rest.Config, error) {
+	inCluster, err := hasInClusterConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("look up in cluster config: %v", err)
 	}
 
-	kubeconfigFile := filepath.Join(home, ".kube", "config")
-
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
-	if err != nil {
-		return nil, err
+	if inCluster {
+		return inClusterConfig()
 	}
 
-	clientset, err := kubernetes.NewForConfig(kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return clientset, nil
+	return localKubeConfig(kubeConfigFile)
 }
 
-func GetKubeClient() (*KubeClient, error) {
-	home, err := os.UserHomeDir()
+func hasInClusterConfig() (bool, error) {
+	_, err := os.Stat("/run/secrets/kubernetes.io/serviceaccount/namespace")
+
+	if err == nil {
+		return true, nil
+	}
+
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+
+	return false, err
+}
+
+func inClusterConfig() (*rest.Config, error) {
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load in cluster config: %v", err)
 	}
 
-	kubeconfigFile := filepath.Join(home, ".kube", "config")
+	return config, nil
+}
 
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
+func localKubeConfig(kubeConfigFile string) (*rest.Config, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load local kube config: %v", err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &KubeClient{
-		clientset:  clientset,
-		restconfig: kubeconfig,
-	}
-
-	return client, nil
+	return config, nil
 }

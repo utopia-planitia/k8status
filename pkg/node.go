@@ -3,25 +3,39 @@ package k8status
 import (
 	"context"
 	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-func PrintNodeStatus(ctx context.Context, clientset *kubernetes.Clientset) error {
-
+func PrintNodeStatus(ctx context.Context, clientset *kubernetes.Clientset, verbose bool) error {
 	nodelist, err := getNodeList(ctx, clientset)
 	if err != nil {
 		return err
 	}
 
+	ready := 0
+	count := len(nodelist.Items)
+
+	for _, node := range nodelist.Items {
+		isReady, _ := getNodeConditions(node)
+		if isReady {
+			ready += 1
+		}
+	}
+
+	fmt.Printf("%d of %d Node are ready.\n", ready, count)
+
 	for _, node := range nodelist.Items {
 		isReady, conditions := getNodeConditions(node)
-		if isReady {
-			fmt.Printf("%s Node %s is ready\n", green("✓"), node.Name)
-		} else {
-			fmt.Printf("%s Node %s is not ready\n", red("x"), node.Name)
+
+		if !isReady {
+			fmt.Printf("%s Node %s is not ready.\n", red("x"), node.Name)
+		} else if verbose {
+			fmt.Printf("%s Node %s is ready.\n", green("✓"), node.Name)
 		}
+
 		for _, msg := range conditions {
 			fmt.Println(msg)
 		}
