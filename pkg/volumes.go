@@ -20,7 +20,15 @@ func PrintVolumeStatus(ctx context.Context, clientset *kubernetes.Clientset, ver
 			healthy++
 		}
 	}
-	fmt.Printf("%d of %d volumes are bound or available", healthy, len(pv.Items))
+	fmt.Printf("%d of %d volumes are bound or available.\n", healthy, len(pv.Items))
+
+	if len(pv.Items) != healthy {
+		for _, item := range pv.Items {
+			if item.Status.Phase != v1.VolumeBound && item.Status.Phase != v1.VolumeAvailable {
+				fmt.Printf("%s %s\n", item.Namespace, item.Name)
+			}
+		}
+	}
 
 	return nil
 }

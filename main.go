@@ -92,6 +92,15 @@ func run(c *cli.Context) error {
 		return err
 	}
 
+	err = k8status.PrintVolumeStatus(ctx, clientset, verbose)
+	if err != nil {
+		return err
+	}
+
+	err = k8status.PrintVolumeClaimStatus(ctx, clientset, verbose)
+	if err != nil {
+		return err
+	}
 	/*
 		corev1 := clientset.CoreV1()
 		foo, _ := corev1.Secrets("cassandra").List(ctx, metav1.ListOptions{})
