@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	inClusterSentinalFile = "/run/secrets/kubernetes.io/serviceaccount/namespace"
+	inClusterSentinelFile = "/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 func KubernetesClient(kubeconfigFile string) (*rest.Config, *kubernetes.Clientset, error) {
@@ -42,7 +42,7 @@ func restConfig(kubeConfigFile string) (*rest.Config, error) {
 }
 
 func hasInClusterConfig() (bool, error) {
-	_, err := os.Stat("/run/secrets/kubernetes.io/serviceaccount/namespace")
+	_, err := os.Stat(inClusterSentinelFile)
 
 	if err == nil {
 		return true, nil

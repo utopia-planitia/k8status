@@ -87,7 +87,10 @@ func run(c *cli.Context) error {
 		return err
 	}
 
-	_ = restconfig
+	err = k8status.PrintRookCephStatus(ctx, clientset, restconfig, verbose)
+	if err != nil {
+		return err
+	}
 
 	/*
 		corev1 := clientset.CoreV1()
