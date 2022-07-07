@@ -9,21 +9,21 @@ import (
 )
 
 func PrintVolumeClaimStatus(ctx context.Context, clientset *kubernetes.Clientset, verbose bool) error {
-	pvc, err := clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
+	pvcs, err := clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	healthy := 0
-	for _, item := range pvc.Items {
+	for _, item := range pvcs.Items {
 		if item.Status.Phase == v1.ClaimBound {
 			healthy++
 		}
 	}
-	fmt.Printf("%d of %d volume claims are bound.\n", healthy, len(pvc.Items))
+	fmt.Printf("%d of %d volume claims are bound.\n", healthy, len(pvcs.Items))
 
-	if len(pvc.Items) != healthy {
-		for _, item := range pvc.Items {
+	if len(pvcs.Items) != healthy {
+		for _, item := range pvcs.Items {
 			if item.Status.Phase != v1.ClaimBound {
 				fmt.Printf("%s %s\n", item.Namespace, item.Name)
 			}
