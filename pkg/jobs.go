@@ -3,6 +3,7 @@ package k8status
 import (
 	"context"
 	"fmt"
+	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -15,13 +16,28 @@ func PrintJobStatus(ctx context.Context, clientset *kubernetes.Clientset, verbos
 
 	healthy := 0
 	for _, item := range jobs.Items {
-		if item.Status.Failed > 0 {
-			continue
+		for _, condition := range item.Status.Conditions {
+			if condition.Type != v1.JobComplete {
+				continue
+			}
 		}
 
 		healthy++
 	}
 
 	fmt.Printf("%d of %d jobs are completed.\n", healthy, len(jobs.Items))
+
+	if verbose {
+		for _, item := range jobs.Items {
+			for _, condition := range item.Status.Conditions {
+				if condition.Type != v1.JobComplete {
+					continue
+				}
+			}
+
+			fmt.Printf("Job %s in namespace %s failed.\n", item.Namespace, item.Name)
+		}
+	}
+
 	return nil
 }
