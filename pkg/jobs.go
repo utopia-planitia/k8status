@@ -18,10 +18,8 @@ func PrintJobStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 
 	healthy := 0
 	for _, item := range jobs.Items {
-		for _, condition := range item.Status.Conditions {
-			if condition.Type != v1.JobComplete {
-				continue
-			}
+		if !isHealthy(item) {
+			continue
 		}
 
 		healthy++
@@ -31,10 +29,8 @@ func PrintJobStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 
 	if verbose {
 		for _, item := range jobs.Items {
-			for _, condition := range item.Status.Conditions {
-				if condition.Type != v1.JobComplete {
-					continue
-				}
+			if isHealthy(item) {
+				continue
 			}
 
 			fmt.Printf("Job %s in namespace %s failed.\n", item.Namespace, item.Name)
@@ -42,4 +38,16 @@ func PrintJobStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 	}
 
 	return 0, nil
+}
+
+func isHealthy(item v1.Job) bool {
+	if item.Status.Active > 0 {
+		return true
+	}
+
+	if *item.Spec.Completions == item.Status.Succeeded {
+		return true
+	}
+
+	return false
 }
