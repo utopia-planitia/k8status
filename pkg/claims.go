@@ -3,15 +3,17 @@ package k8status
 import (
 	"context"
 	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-func PrintVolumeClaimStatus(ctx context.Context, clientset *kubernetes.Clientset, verbose bool) error {
+func PrintVolumeClaimStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	healthy := 0
@@ -30,5 +32,5 @@ func PrintVolumeClaimStatus(ctx context.Context, clientset *kubernetes.Clientset
 		}
 	}
 
-	return nil
+	return 0, nil
 }

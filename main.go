@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	cli "github.com/urfave/cli/v2"
 	k8status "gitlab.com/utopia-planitia/k8status/pkg"
@@ -69,54 +68,12 @@ func run(c *cli.Context) error {
 	kubeConfigFile := c.String(kubeConfigFile.Name)
 	ctx := c.Context
 
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
-
 	restconfig, clientset, err := k8status.KubernetesClient(kubeConfigFile)
 	if err != nil {
 		return err
 	}
 
-	err = k8status.PrintNodeStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintCassandraStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintRookCephStatus(ctx, clientset, restconfig, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintVolumeStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintNamespaceStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintVolumeClaimStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintPodStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	err = k8status.PrintJobStatus(ctx, clientset, verbose)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return k8status.Run(ctx, restconfig, clientset, verbose)
 }
 
 func version(c *cli.Context) error {

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"os"
 )
 
 const (
@@ -28,17 +29,18 @@ type CephStatus struct {
 	} `json:"health"`
 }
 
-func PrintRookCephStatus(ctx context.Context, clientset *kubernetes.Clientset, restconfig *rest.Config, verbose bool) error {
+func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
 	exists, err := namespaceExists(ctx, clientset, rookCephNamespace)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if !exists {
 		if verbose {
 			fmt.Printf("Rook-Ceph was not found.\n")
 		}
-		return nil
+
+		return 0, nil
 	}
 
 	listOptions := metav1.ListOptions{
@@ -51,11 +53,11 @@ func PrintRookCephStatus(ctx context.Context, clientset *kubernetes.Clientset, r
 			fmt.Printf("rook-ceph-tools was not found.\n")
 		}
 
-		return nil
+		return 0, nil
 	}
 
 	if len(pods) == 0 {
-		return fmt.Errorf("no pods found")
+		return 0, fmt.Errorf("no pods found")
 	}
 
 	output := &bytes.Buffer{}
@@ -68,26 +70,28 @@ func PrintRookCephStatus(ctx context.Context, clientset *kubernetes.Clientset, r
 		output,
 	)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	cephStatus := &CephStatus{}
 	err = json.Unmarshal(output.Bytes(), cephStatus)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if cephStatus.Health.Status == "HEALTH_OK" {
 		fmt.Println("Ceph is healthy.")
-		return nil
+		return 0, nil
 	}
 
 	if !verbose {
 		fmt.Println("Ceph is unhealthy.")
+
 		for _, check := range cephStatus.Health.Checks {
 			fmt.Println(check.Summary.Message)
 		}
-		return nil
+
+		return 0, nil
 	}
 
 	err = exec(
@@ -99,8 +103,8 @@ func PrintRookCephStatus(ctx context.Context, clientset *kubernetes.Clientset, r
 		os.Stdout,
 	)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return 0, nil
 }

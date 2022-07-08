@@ -7,12 +7,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-func PrintNodeStatus(ctx context.Context, clientset *kubernetes.Clientset, verbose bool) error {
+func PrintNodeStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
 	nodelist, err := getNodeList(ctx, clientset)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	ready := 0
@@ -41,7 +42,7 @@ func PrintNodeStatus(ctx context.Context, clientset *kubernetes.Clientset, verbo
 		}
 	}
 
-	return nil
+	return 0, nil
 }
 
 func getNodeList(ctx context.Context, clientset *kubernetes.Clientset) (*v1.NodeList, error) {

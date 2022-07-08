@@ -3,15 +3,17 @@ package k8status
 import (
 	"context"
 	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-func PrintPodStatus(ctx context.Context, clientset *kubernetes.Clientset, verbose bool) error {
+func PrintPodStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
 	pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	healthy := 0
@@ -37,5 +39,5 @@ func PrintPodStatus(ctx context.Context, clientset *kubernetes.Clientset, verbos
 
 	fmt.Printf("%d of %d pods are running.\n", healthy, total)
 
-	return err
+	return 0, err
 }
