@@ -67,6 +67,7 @@ func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset
 		restconfig,
 		rookCephNamespace,
 		pods[0].Name,
+		"",
 		"ceph status --format json",
 		output,
 	)
@@ -93,6 +94,7 @@ func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset
 			restconfig,
 			rookCephNamespace,
 			pods[0].Name,
+			"",
 			"ceph status",
 			os.Stdout,
 		)
