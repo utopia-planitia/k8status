@@ -42,6 +42,10 @@ func PrintNodeStatus(ctx context.Context, restconfig *rest.Config, clientset *ku
 		}
 	}
 
+	if ready != count {
+		return 41, nil
+	}
+
 	return 0, nil
 }
 

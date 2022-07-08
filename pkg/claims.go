@@ -30,6 +30,7 @@ func PrintVolumeClaimStatus(ctx context.Context, restconfig *rest.Config, client
 				fmt.Printf("%s %s\n", item.Namespace, item.Name)
 			}
 		}
+		return 43, nil
 	}
 
 	return 0, nil

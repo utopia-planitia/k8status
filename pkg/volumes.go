@@ -32,5 +32,9 @@ func PrintVolumeStatus(ctx context.Context, restconfig *rest.Config, clientset *
 		}
 	}
 
+	if healthy != len(pvs.Items) {
+		return 42, nil
+	}
+
 	return 0, nil
 }

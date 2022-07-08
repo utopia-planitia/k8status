@@ -27,5 +27,9 @@ func PrintNamespaceStatus(ctx context.Context, restconfig *rest.Config, clientse
 
 	fmt.Printf("%d of %d namespaces are active.\n", healthy, len(namespaces.Items))
 
+	if healthy != len(namespaces.Items) {
+		return 43, nil
+	}
+
 	return 0, nil
 }

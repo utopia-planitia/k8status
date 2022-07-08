@@ -15,6 +15,7 @@ import (
 const (
 	rookCephNamespace = "rook-ceph"
 	rookCephLabel     = "app=rook-ceph-tools"
+	rookCephStatusOk  = "HEALTH_OK"
 )
 
 type CephStatus struct {
@@ -79,31 +80,35 @@ func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset
 		return 0, err
 	}
 
-	if cephStatus.Health.Status == "HEALTH_OK" {
+	if cephStatus.Health.Status == rookCephStatusOk {
 		fmt.Println("Ceph is healthy.")
 		return 0, nil
 	}
 
-	if !verbose {
-		fmt.Println("Ceph is unhealthy.")
+	fmt.Println("Ceph is unhealthy.")
 
+	if verbose {
+		err = exec(
+			clientset,
+			restconfig,
+			rookCephNamespace,
+			pods[0].Name,
+			"ceph status",
+			os.Stdout,
+		)
+		if err != nil {
+			return 0, err
+		}
+	} else {
 		for _, check := range cephStatus.Health.Checks {
 			fmt.Println(check.Summary.Message)
 		}
-
-		return 0, nil
 	}
 
-	err = exec(
-		clientset,
-		restconfig,
-		rookCephNamespace,
-		pods[0].Name,
-		"ceph status",
-		os.Stdout,
-	)
-	if err != nil {
-		return 0, err
+	// @TODO: Exit Code 48 ( status.sh, line 115	)
+
+	if cephStatus.Health.Status != rookCephStatusOk {
+		return 47, nil
 	}
 
 	return 0, nil
