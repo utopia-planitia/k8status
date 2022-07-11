@@ -3,16 +3,15 @@ package k8status
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
-func PrintPodStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
-	pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+func PrintPodStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+	pods, err := client.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
@@ -38,7 +37,7 @@ func PrintPodStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 		}
 	}
 
-	fmt.Printf("%d of %d pods are running.\n", healthy, total)
+	fmt.Fprintf(header, "%d of %d pods are running.\n", healthy, total)
 
 	if verbose {
 		for _, item := range pods.Items {
@@ -57,7 +56,7 @@ func PrintPodStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 				continue
 			}
 
-			fmt.Printf("Pod %s in namespace %s failed.\n", item.Name, item.Namespace)
+			fmt.Fprintf(details, "Pod %s in namespace %s failed.\n", item.Name, item.Namespace)
 		}
 	}
 
@@ -80,7 +79,6 @@ func PrintPodStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 		if len(item.Spec.Containers) != containerReady {
 			return 45, nil
 		}
-
 	}
 
 	return 0, err

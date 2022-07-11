@@ -14,18 +14,26 @@ const (
 	inClusterSentinelFile = "/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
-func KubernetesClient(kubeconfigFile string) (*rest.Config, *kubernetes.Clientset, error) {
+type KubernetesClient struct {
+	restconfig *rest.Config
+	clientset  *kubernetes.Clientset
+}
+
+func NewKubernetesClient(kubeconfigFile string) (*KubernetesClient, error) {
 	restconfig, err := restConfig(kubeconfigFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("load kubernetes client config: %v", err)
+		return nil, fmt.Errorf("load kubernetes client config: %v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(restconfig)
 	if err != nil {
-		return nil, nil, fmt.Errorf("setup kubernetes client: %v", err)
+		return nil, fmt.Errorf("setup kubernetes client: %v", err)
 	}
 
-	return restconfig, clientset, nil
+	return &KubernetesClient{
+		restconfig,
+		clientset,
+	}, nil
 }
 
 func restConfig(kubeConfigFile string) (*rest.Config, error) {

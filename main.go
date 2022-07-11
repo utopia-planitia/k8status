@@ -68,12 +68,12 @@ func run(c *cli.Context) error {
 	kubeConfigFile := c.String(kubeConfigFile.Name)
 	ctx := c.Context
 
-	restconfig, clientset, err := k8status.KubernetesClient(kubeConfigFile)
+	k8sClient, err := k8status.NewKubernetesClient(kubeConfigFile)
 	if err != nil {
 		return err
 	}
 
-	return k8status.Run(ctx, restconfig, clientset, verbose)
+	return k8status.Run(ctx, k8sClient, verbose)
 }
 
 func version(c *cli.Context) error {

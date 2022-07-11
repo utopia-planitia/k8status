@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
+	"io"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -30,15 +28,15 @@ type CephStatus struct {
 	} `json:"health"`
 }
 
-func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
-	exists, err := namespaceExists(ctx, clientset, rookCephNamespace)
+func PrintRookCephStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+	exists, err := namespaceExists(ctx, client.clientset, rookCephNamespace)
 	if err != nil {
 		return 0, err
 	}
 
 	if !exists {
 		if verbose {
-			fmt.Printf("Rook-Ceph was not found.\n")
+			fmt.Fprintf(header, "Rook-Ceph was not found.\n")
 		}
 
 		return 0, nil
@@ -48,10 +46,10 @@ func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset
 		LabelSelector: rookCephLabel,
 	}
 
-	pods, err := listPods(ctx, clientset, rookCephNamespace, listOptions)
+	pods, err := listPods(ctx, client.clientset, rookCephNamespace, listOptions)
 	if err != nil {
 		if verbose {
-			fmt.Printf("rook-ceph-tools was not found.\n")
+			fmt.Fprintf(header, "rook-ceph-tools was not found.\n")
 		}
 
 		return 0, nil
@@ -63,8 +61,7 @@ func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset
 
 	output := &bytes.Buffer{}
 	err = exec(
-		clientset,
-		restconfig,
+		client,
 		rookCephNamespace,
 		pods[0].Name,
 		"",
@@ -82,28 +79,27 @@ func PrintRookCephStatus(ctx context.Context, restconfig *rest.Config, clientset
 	}
 
 	if cephStatus.Health.Status == rookCephStatusOk {
-		fmt.Println("Ceph is healthy.")
+		fmt.Fprintln(header, "Ceph is healthy.")
 		return 0, nil
 	}
 
-	fmt.Println("Ceph is unhealthy.")
+	fmt.Fprintln(header, "Ceph is unhealthy.")
 
 	if verbose {
 		err = exec(
-			clientset,
-			restconfig,
+			client,
 			rookCephNamespace,
 			pods[0].Name,
 			"",
 			"ceph status",
-			os.Stdout,
+			details,
 		)
 		if err != nil {
 			return 0, err
 		}
 	} else {
 		for _, check := range cephStatus.Health.Checks {
-			fmt.Println(check.Summary.Message)
+			fmt.Fprintln(details, check.Summary.Message)
 		}
 	}
 

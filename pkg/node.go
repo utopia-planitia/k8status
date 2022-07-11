@@ -3,50 +3,59 @@ package k8status
 import (
 	"context"
 	"fmt"
+	"io"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
-func PrintNodeStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
-	nodelist, err := getNodeList(ctx, clientset)
+func PrintNodeStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+	nodelist, err := getNodeList(ctx, client.clientset)
 	if err != nil {
 		return 0, err
 	}
 
-	ready := 0
+	up := 0
 	count := len(nodelist.Items)
+	exitCode := 0
 
 	for _, node := range nodelist.Items {
-		isReady, _ := getNodeConditions(node)
-		if isReady {
-			ready += 1
+		isReady, cordoned, _ := getNodeConditions(node)
+		if isReady && !cordoned {
+			up += 1
 		}
 	}
 
-	fmt.Printf("%d of %d Node are ready.\n", ready, count)
+	fmt.Fprintf(header, "%d of %d Node are up and healthy.\n", up, count)
 
 	for _, node := range nodelist.Items {
-		isReady, conditions := getNodeConditions(node)
+		ready, cordoned, conditions := getNodeConditions(node)
 
-		if !isReady {
-			fmt.Printf("%s Node %s is not ready.\n", red("x"), node.Name)
-		} else if verbose {
-			fmt.Printf("%s Node %s is ready.\n", green("✓"), node.Name)
+		if !ready {
+			fmt.Fprintf(details, "%s Node %s is not ready.\n", red("x"), node.Name)
+
+			exitCode = 45
 		}
 
-		for _, msg := range conditions {
-			fmt.Println(msg)
+		if cordoned {
+			fmt.Fprintf(details, "%s Node %s is cordoned.\n", red("x"), node.Name)
+
+			exitCode = 45
+		}
+
+		if len(conditions) != 0 {
+			fmt.Fprintf(details, "%s Node %s has conditions:\n", red("x"), node.Name)
+
+			for _, msg := range conditions {
+				fmt.Fprintln(details, msg)
+			}
+
+			exitCode = 45
 		}
 	}
 
-	if ready != count {
-		return 41, nil
-	}
-
-	return 0, nil
+	return exitCode, nil
 }
 
 func getNodeList(ctx context.Context, clientset *kubernetes.Clientset) (*v1.NodeList, error) {
@@ -58,9 +67,10 @@ func getNodeList(ctx context.Context, clientset *kubernetes.Clientset) (*v1.Node
 	return nodes, nil
 }
 
-func getNodeConditions(node v1.Node) (bool, []string) {
+func getNodeConditions(node v1.Node) (bool, bool, []string) {
 	messages := make([]string, 0)
 	ready := false
+	cordoned := node.Spec.Unschedulable
 
 	for _, condition := range node.Status.Conditions {
 		if condition.Type != v1.NodeReady {
@@ -74,5 +84,5 @@ func getNodeConditions(node v1.Node) (bool, []string) {
 		}
 	}
 
-	return ready, messages
+	return ready, cordoned, messages
 }

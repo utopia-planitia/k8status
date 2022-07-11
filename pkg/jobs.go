@@ -3,15 +3,15 @@ package k8status
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 
 	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
-func PrintJobStatus(ctx context.Context, restconfig *rest.Config, clientset *kubernetes.Clientset, verbose bool) (int, error) {
-	jobs, err := clientset.BatchV1().Jobs("").List(ctx, metav1.ListOptions{})
+func PrintJobStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+	jobs, err := client.clientset.BatchV1().Jobs("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
@@ -25,7 +25,7 @@ func PrintJobStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 		healthy++
 	}
 
-	fmt.Printf("%d of %d jobs are completed.\n", healthy, len(jobs.Items))
+	fmt.Fprintf(header, "%d of %d jobs are completed.\n", healthy, len(jobs.Items))
 
 	if verbose {
 		for _, item := range jobs.Items {
@@ -33,8 +33,20 @@ func PrintJobStatus(ctx context.Context, restconfig *rest.Config, clientset *kub
 				continue
 			}
 
-			fmt.Printf("Job %s in namespace %s failed.\n", item.Namespace, item.Name)
+			fmt.Fprintf(details, "Job %s in namespace %s failed.\n", item.Namespace, item.Name)
 		}
+	}
+
+	for _, item := range jobs.Items {
+		if strings.Contains(item.ObjectMeta.Namespace, "ci") || strings.Contains(item.ObjectMeta.Namespace, "lab") {
+			continue
+		}
+
+		if isHealthy(item) {
+			continue
+		}
+
+		return 49, nil
 	}
 
 	return 0, nil

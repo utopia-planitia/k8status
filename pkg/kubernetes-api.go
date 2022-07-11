@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
@@ -44,15 +43,14 @@ func listPods(
 }
 
 func exec(
-	clientset *kubernetes.Clientset,
-	restconfig *rest.Config,
+	client *KubernetesClient,
 	namespace string,
 	pod string,
 	container string,
 	command string,
 	stdout io.Writer,
 ) error {
-	request := clientset.
+	request := client.clientset.
 		CoreV1().
 		RESTClient().
 		Post().
@@ -69,7 +67,7 @@ func exec(
 			Container: container,
 		}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(restconfig, http.MethodPost, request.URL())
+	exec, err := remotecommand.NewSPDYExecutor(client.restconfig, http.MethodPost, request.URL())
 	if err != nil {
 		return err
 	}
