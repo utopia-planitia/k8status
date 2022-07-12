@@ -1,0 +1,13 @@
+run:
+  timeout: 5m
+
+issues:
+  exclude:
+    - Using the variable on range scope `tt` in function literal
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+    - path: main.go
+      linters:
+        - gocognit
