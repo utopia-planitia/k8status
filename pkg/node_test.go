@@ -8,9 +8,6 @@ import (
 )
 
 func Test_getNodeConditions(t *testing.T) {
-	type args struct {
-		node v1.Node
-	}
 	tests := []struct {
 		name     string
 		node     v1.Node

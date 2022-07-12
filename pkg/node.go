@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/fatih/color"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -85,4 +86,8 @@ func getNodeConditions(node v1.Node) (bool, bool, []string) {
 	}
 
 	return ready, cordoned, messages
+}
+
+func red(format string, a ...interface{}) string {
+	return color.New(color.FgRed).Sprintf(format, a...)
 }

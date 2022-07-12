@@ -20,8 +20,6 @@ type result struct {
 	err      error
 }
 
-type future <-chan result
-
 type futures []<-chan result
 
 type results []result
@@ -68,7 +66,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool) error {
 
 	fmt.Println()
 
-	results.Details(os.Stdout)
+	err = results.Details(os.Stdout)
 	if err != nil {
 		return err
 	}

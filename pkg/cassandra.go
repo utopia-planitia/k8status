@@ -30,6 +30,10 @@ func PrintCassandraStatus(ctx context.Context, header io.Writer, details io.Writ
 	}
 
 	secret, err := client.clientset.CoreV1().Secrets(cassandraNamespace).Get(ctx, "k8ssandra-superuser", metav1.GetOptions{})
+	if err != nil {
+		return 0, err
+	}
+
 	username := secret.Data["username"]
 	password := secret.Data["password"]
 
@@ -42,6 +46,9 @@ func PrintCassandraStatus(ctx context.Context, header io.Writer, details io.Writ
 		fmt.Sprintf("nodetool -u %s -pw %s --host ::FFFF:127.0.0.1 status | grep --extended-regexp '^[UD][NLJM]\\s+'", username, password),
 		output,
 	)
+	if err != nil {
+		return 0, err
+	}
 
 	readyNodes := strings.Count(output.String(), "UN")
 	totalNodes := strings.Count(output.String(), "\n")
@@ -49,7 +56,7 @@ func PrintCassandraStatus(ctx context.Context, header io.Writer, details io.Writ
 	fmt.Fprintf(header, "%d of %d cassandra nodes are ready.\n", readyNodes, totalNodes)
 
 	if readyNodes != totalNodes {
-		fmt.Fprintf(details, output.String())
+		fmt.Fprint(details, output.String())
 		return 46, nil
 	}
 
