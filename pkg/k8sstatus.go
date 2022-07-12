@@ -74,7 +74,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool) error {
 	exitCode := results.ExitCode()
 	if exitCode != 0 {
 		fmt.Println()
-		return cli.NewExitError("an issue was found", exitCode)
+		return cli.Exit("an issue was found", exitCode)
 	}
 
 	return nil
