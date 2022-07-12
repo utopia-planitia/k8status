@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	gitHash string
-	gitRef  string
+	commit  string
+	version string
+	date    string
 	verbose = &cli.BoolFlag{
 		Name:  "verbose",
 		Value: false,
@@ -41,7 +42,7 @@ var (
 			{
 				Name:   "version",
 				Usage:  "Print the version.",
-				Action: version,
+				Action: printVersion,
 			},
 		},
 	}
@@ -76,8 +77,8 @@ func run(c *cli.Context) error {
 	return k8status.Run(ctx, k8sClient, verbose)
 }
 
-func version(c *cli.Context) error {
-	_, err := fmt.Printf("version: %s\ngit commit: %s\n", gitRef, gitHash)
+func printVersion(c *cli.Context) error {
+	_, err := fmt.Printf("version: %s\ngit commit: %s\ngit commit date: %s\n", version, commit, date)
 	if err != nil {
 		return err
 	}
