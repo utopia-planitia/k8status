@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/fatih/color v1.13.0
-	github.com/urfave/cli v1.22.9
 	github.com/urfave/cli/v2 v2.10.3
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
