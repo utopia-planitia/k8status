@@ -23,7 +23,18 @@
       ]
     },
     "separateMinorPatch": true,
-    "dependencyDashboard": false
+    "dependencyDashboard": false,
+    "packageRules": [
+      {
+        "matchPackagePatterns": [
+          "^k8s.io/client-go$"
+        ],
+        "matchUpdateTypes": [
+          "major"
+        ],
+        "enabled": false
+      }
+    ]  
   }
   
   
