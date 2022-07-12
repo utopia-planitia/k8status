@@ -5,7 +5,8 @@
     ],
     "pinDigests": true,
     "postUpdateOptions": [
-      "gomodTidy1.17",
+      "gomodTidy",
+      "gomodMassage",
       "gomodUpdateImportPaths"
     ],
     "prHourlyLimit": 0,
