@@ -38,6 +38,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool) error {
 		PrintJobStatus,
 		PrintDeploymentStatus,
 		PrintStatefulsetStatus,
+		PrintDaemonsetStatus,
 	}
 
 	futures := futures{}
