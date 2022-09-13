@@ -14,7 +14,7 @@ const (
 	cassandraNamespace = "cassandra"
 )
 
-func PrintCassandraStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+func PrintCassandraStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
 
 	exists, err := namespaceExists(ctx, client.clientset, cassandraNamespace)
 	if err != nil {

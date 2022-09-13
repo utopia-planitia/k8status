@@ -28,7 +28,7 @@ type CephStatus struct {
 	} `json:"health"`
 }
 
-func PrintRookCephStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+func PrintRookCephStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
 	exists, err := namespaceExists(ctx, client.clientset, rookCephNamespace)
 	if err != nil {
 		return 0, err

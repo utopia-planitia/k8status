@@ -19,6 +19,11 @@ var (
 		Value: false,
 		Usage: "Print verbose outputs.",
 	}
+	noColors = &cli.BoolFlag{
+		Name:  "noColors",
+		Value: false,
+		Usage: "Set to true to supress coloured output.",
+	}
 	kubeConfigFile = &cli.StringFlag{
 		Name:    "kubeconfig",
 		Value:   "", // overwritten by init function
@@ -32,6 +37,7 @@ var (
 		Flags: []cli.Flag{
 			verbose,
 			kubeConfigFile,
+			noColors,
 		},
 		Commands: []*cli.Command{
 			{
@@ -66,6 +72,7 @@ func main() {
 
 func run(c *cli.Context) error {
 	verbose := c.Bool(verbose.Name)
+	noColors := c.Bool(noColors.Name)
 	kubeConfigFile := c.String(kubeConfigFile.Name)
 	ctx := c.Context
 
@@ -74,7 +81,7 @@ func run(c *cli.Context) error {
 		return err
 	}
 
-	return k8status.Run(ctx, k8sClient, verbose)
+	return k8status.Run(ctx, k8sClient, verbose, noColors)
 }
 
 func printVersion(c *cli.Context) error {

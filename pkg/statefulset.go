@@ -6,10 +6,11 @@ import (
 	"io"
 	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
 	statefulsets, err := client.clientset.AppsV1().StatefulSets("").List(ctx, metav1.ListOptions{})
 	_ = statefulsets
 	if err != nil {
@@ -18,6 +19,11 @@ func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details io.Wr
 
 	healthy := 0
 	total := 0
+	table, err := CreateTable(details, []string{"Statefulset", "Namespace", "Replicas", "Ready", "Current", "Updated"}, tablewriter.FgCyanColor)
+	if err != nil {
+		return 0, err
+	}
+	tableData := [][]string{}
 
 	for _, item := range statefulsets.Items {
 		total++
@@ -27,20 +33,19 @@ func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details io.Wr
 			item.Status.Replicas == item.Status.UpdatedReplicas {
 			healthy++
 		} else {
-			if verbose {
-				_, err = details.Write([]byte(fmt.Sprintf("In namespace \"%s\", statefulset \"%s\" should have \"%d\""+
-					" replicas but has \"%d\" ready, \"%d\" current and \"%d\" updated \n",
-					item.Namespace, item.Name, item.Status.Replicas, item.Status.ReadyReplicas,
-					item.Status.CurrentReplicas, item.Status.UpdatedReplicas)))
-				if err != nil {
-					return 0, err
-				}
-			}
+			tableData = append(tableData, []string{item.Name, item.Namespace, fmt.Sprintf("%d", item.Status.Replicas),
+				fmt.Sprintf("%d", item.Status.ReadyReplicas), fmt.Sprintf("%d", item.Status.CurrentReplicas),
+				fmt.Sprintf("%d", item.Status.UpdatedReplicas)})
 		}
-
 	}
 
 	fmt.Fprintf(header, "%d of %d statefulsets are healthy.\n", healthy, total)
+
+	if verbose {
+		if len(tableData) != 0 {
+			RenderTable(table, tableData)
+		}
+	}
 
 	for _, item := range statefulsets.Items {
 

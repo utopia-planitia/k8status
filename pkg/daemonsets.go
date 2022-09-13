@@ -6,10 +6,11 @@ import (
 	"io"
 	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
 	daemonsets, err := client.clientset.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{})
 	_ = daemonsets
 	if err != nil {
@@ -18,19 +19,14 @@ func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details io.Writ
 
 	healthy := 0
 	total := 0
+	table, err := CreateTable(details, []string{"Daemonset", "Namespace", "Scheduled", "Current", "Ready", "Up-to-date", "Available"}, tablewriter.FgYellowColor)
+	if err != nil {
+		return 0, err
+	}
+	tableData := [][]string{}
 
 	for _, item := range daemonsets.Items {
 		total++
-
-		if verbose {
-			_, err = details.Write([]byte(fmt.Sprintf("In namespace \"%s\", daemonset \"%s\" has \"%d\""+
-				" scheduled nodes but has \"%d\" current, \"%d\" ready, \"%d\" up-to-date and \"%d\"available\n",
-				item.Namespace, item.Name, item.Status.DesiredNumberScheduled, item.Status.CurrentNumberScheduled,
-				item.Status.NumberReady, item.Status.UpdatedNumberScheduled, item.Status.NumberAvailable)))
-		}
-		if err != nil {
-			return 0, err
-		}
 
 		if item.Status.DesiredNumberScheduled == item.Status.CurrentNumberScheduled &&
 			item.Status.DesiredNumberScheduled == item.Status.NumberReady &&
@@ -38,20 +34,20 @@ func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details io.Writ
 			item.Status.DesiredNumberScheduled == item.Status.NumberAvailable {
 			healthy++
 		} else {
-			if verbose {
-				_, err = details.Write([]byte(fmt.Sprintf("In namespace \"%s\", daemonset \"%s\" has \"%d\""+
-					" scheduled nodes but has \"%d\" current, \"%d\" ready, \"%d\" up-to-date and \"%d\"available\n",
-					item.Namespace, item.Name, item.Status.DesiredNumberScheduled, item.Status.CurrentNumberScheduled,
-					item.Status.NumberReady, item.Status.UpdatedNumberScheduled, item.Status.NumberAvailable)))
-				if err != nil {
-					return 0, err
-				}
-			}
+			tableData = append(tableData, []string{item.Name, item.Namespace, fmt.Sprintf("%d", item.Status.DesiredNumberScheduled),
+				fmt.Sprintf("%d", item.Status.CurrentNumberScheduled), fmt.Sprintf("%d", item.Status.NumberReady),
+				fmt.Sprintf("%d", item.Status.UpdatedNumberScheduled), fmt.Sprintf("%d", item.Status.NumberAvailable)})
 		}
 
 	}
 
 	fmt.Fprintf(header, "%d of %d daemonsets are healthy.\n", healthy, total)
+
+	if verbose {
+		if len(tableData) != 0 {
+			RenderTable(table, tableData)
+		}
+	}
 
 	for _, item := range daemonsets.Items {
 
