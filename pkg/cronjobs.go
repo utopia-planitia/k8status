@@ -45,7 +45,7 @@ func printCronjobStatus(_ context.Context, header io.Writer, details colorWriter
 		return 0, ErrCronJobListIsNil
 	}
 
-	stats := gatherStats(cronjobs)
+	stats := gatherCronjobStats(cronjobs)
 
 	err := createAndWriteTableInfo(header, details, stats, verbose)
 	if err != nil {
@@ -106,7 +106,7 @@ type cronjobsStats struct {
 	tableData                            [][]string
 }
 
-func gatherStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
+func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 	foundCronjobWithNoLastSuccessfulTime := false
 	foundCronjobWith100FailedRetries := false
 	healthy := 0
