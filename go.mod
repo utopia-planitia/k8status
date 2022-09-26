@@ -3,6 +3,7 @@ module gitlab.com/utopia-planitia/k8status
 go 1.19
 
 require (
+	github.com/aptible/supercronic v0.2.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/urfave/cli/v2 v2.23.5
 	k8s.io/api v0.25.4
