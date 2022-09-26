@@ -44,6 +44,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, noColors b
 		PrintDeploymentStatus,
 		PrintStatefulsetStatus,
 		PrintDaemonsetStatus,
+		PrintCronjobStatus,
 	}
 
 	futures := futures{}
