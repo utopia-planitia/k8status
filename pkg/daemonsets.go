@@ -2,13 +2,17 @@ package k8status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var ErrDaemonsetListIsNil error = errors.New("ErrDaemonsetListIsNil")
 
 type daemonsetTableView struct {
 	name      string
@@ -26,6 +30,33 @@ func (c daemonsetTableView) header() []string {
 
 func (c daemonsetTableView) row() []string {
 	return []string{c.name, c.namespace, c.scheduled, c.current, c.ready, c.updated, c.available}
+}
+
+func printDaemonsetStatus(_ context.Context, header io.Writer, details colorWriter, daemonsets *appsv1.DaemonSetList, verbose bool) (int, error) {
+	if daemonsets == nil {
+		return 0, ErrDaemonsetListIsNil
+	}
+
+	stats := gatherDaemonsetsStats(daemonsets)
+
+	err := createAndWriteTableInfo(header, details, stats, verbose)
+	if err != nil {
+		return 0, err
+	}
+
+	exitCode := evaluateDaemonsetsStatus(stats)
+
+	return exitCode, nil
+}
+
+func evaluateDaemonsetsStatus(stats *daemonsetStats) (exitCode int) {
+	exitCode = 0
+
+	if stats.foundDaemonset {
+		return 51
+	}
+
+	return exitCode
 }
 
 func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
@@ -69,23 +100,60 @@ func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details colorWr
 		}
 	}
 
+	// for _, item := range daemonsets.Items {
+
+	// 	if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+	// 		continue
+	// 	}
+
+	// 	deploymentHealthy := item.Status.DesiredNumberScheduled == item.Status.CurrentNumberScheduled &&
+	// 		item.Status.DesiredNumberScheduled == item.Status.NumberReady &&
+	// 		item.Status.DesiredNumberScheduled == item.Status.UpdatedNumberScheduled &&
+	// 		item.Status.DesiredNumberScheduled == item.Status.NumberAvailable
+
+	// 	if !deploymentHealthy {
+	// 		return 51, nil
+	// 	}
+
+	// }
+	exitCode := evaluateDaemonsetsStatus(stats)
+
+	return exitCode, err
+
+}
+
+func gatherDaemonsetsStats(daemonsets *appsv1.DaemonSetList) *daemonsetStats {
+
+	healthy := 0
+	tableData := [][]string{}
+
 	for _, item := range daemonsets.Items {
 
 		if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
 			continue
 		}
 
-		deploymentHealthy := item.Status.DesiredNumberScheduled == item.Status.CurrentNumberScheduled &&
+		daemonsetHealthy := item.Status.DesiredNumberScheduled == item.Status.CurrentNumberScheduled &&
 			item.Status.DesiredNumberScheduled == item.Status.NumberReady &&
 			item.Status.DesiredNumberScheduled == item.Status.UpdatedNumberScheduled &&
 			item.Status.DesiredNumberScheduled == item.Status.NumberAvailable
 
-		if !deploymentHealthy {
-			return 51, nil
+		if daemonsetHealthy {
+			healthy++
 		}
-
 	}
 
-	return 0, err
+	stats := daemonsetStats{
+		total:       len(daemonsets.Items),
+		healthySets: healthy,
+		tableData:   tableData,
+	}
 
+	return &stats
+}
+
+type daemonsetStats struct {
+	total       int
+	healthySets int
+	tableData   [][]string
 }
