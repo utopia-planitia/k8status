@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/aptible/supercronic/cronexpr"
@@ -47,7 +46,7 @@ func printCronjobStatus(_ context.Context, header io.Writer, details colorWriter
 
 	stats := gatherCronjobStats(cronjobs)
 
-	err := createAndWriteTableInfo(header, details, stats, verbose)
+	err := createAndWriteCronjobsTableInfo(header, details, stats, verbose)
 	if err != nil {
 		return 0, err
 	}
@@ -71,16 +70,7 @@ func evaluateCronjobsStatus(stats *cronjobsStats) (exitCode int) {
 	return exitCode
 }
 
-func isCiOrLabNamespace(namespace string) bool {
-	return strings.HasPrefix(namespace, "ci-") ||
-		strings.Contains(namespace, "-ci-") ||
-		strings.HasSuffix(namespace, "-ci") ||
-		strings.HasPrefix(namespace, "lab-") ||
-		strings.Contains(namespace, "-lab-") ||
-		strings.HasSuffix(namespace, "-lab")
-}
-
-func createAndWriteTableInfo(header io.Writer, details colorWriter, stats *cronjobsStats, verbose bool) error {
+func createAndWriteCronjobsTableInfo(header io.Writer, details colorWriter, stats *cronjobsStats, verbose bool) error {
 
 	table, err := CreateTable(details, tableHeader(cronjobTableView{}), tablewriter.FgYellowColor)
 	if err != nil {
@@ -114,12 +104,14 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 
 	for _, item := range cronjobs.Items {
 
+		// TODO: The line commented above seems to not be correct because we still want it to be printed on the table
+		// although we don't want it to generate an error
 		if isCiOrLabNamespace(item.Namespace) {
-			healthy++
+			healthy++ // Is this correct? Ci or Lab count for header writer, only not for errors
 			continue
 		}
 
-		// ignore all suspended cronjobs
+		// ignore all suspended cronjobs - Should this come before the previous check?
 		if *item.Spec.Suspend {
 			healthy++
 			continue
@@ -161,3 +153,14 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 
 	return &stats
 }
+
+// func cronjobIsHealthy(item batchv1.CronJob) bool {
+// 	if item.Status.DesiredNumberScheduled == item.Status.CurrentNumberScheduled &&
+// 		item.Status.DesiredNumberScheduled == item.Status.NumberReady &&
+// 		item.Status.DesiredNumberScheduled == item.Status.UpdatedNumberScheduled &&
+// 		item.Status.DesiredNumberScheduled == item.Status.NumberAvailable {
+// 		return true
+// 	}
+
+// 	return false
+// }
