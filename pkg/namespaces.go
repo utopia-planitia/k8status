@@ -34,36 +34,6 @@ func PrintNamespaceStatus(ctx context.Context, header io.Writer, details colorWr
 	}
 
 	return printNamespaceStatus(ctx, header, details, namespaces, verbose)
-
-	// healthy := 0
-	// table, err := CreateTable(details, []string{"Namespace", "Phase"}, tablewriter.FgGreenColor)
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// tableData := [][]string{}
-
-	// for _, item := range namespaces.Items {
-	// 	if item.Status.Phase != v1.NamespaceActive {
-	// 		tableData = append(tableData, []string{item.Name, string(item.Status.Phase)})
-	// 		continue
-	// 	}
-
-	// 	healthy++
-	// }
-
-	// fmt.Fprintf(header, "%d of %d namespaces are active.\n", healthy, len(namespaces.Items))
-
-	// if verbose {
-	// 	if len(tableData) != 0 {
-	// 		RenderTable(table, tableData)
-	// 	}
-	// }
-
-	// if healthy != len(namespaces.Items) {
-	// 	return 43, nil
-	// }
-
-	// return 0, nil
 }
 
 func printNamespaceStatus(_ context.Context, header io.Writer, details colorWriter, namespaces *v1.NamespaceList, verbose bool) (int, error) {

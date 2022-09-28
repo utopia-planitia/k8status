@@ -36,67 +36,6 @@ func PrintPodStatus(ctx context.Context, header io.Writer, details colorWriter, 
 	}
 
 	return printPodStatus(ctx, header, details, pods, verbose)
-
-	// healthy := 0
-	// total := 0
-	// table, err := CreateTable(details, []string{"Pod", "Namespace", "Phase", "Containers Ready", "Containers Expected"}, tablewriter.FgRedColor)
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// tableData := [][]string{}
-
-	// for _, item := range pods.Items {
-	// 	if item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
-	// 		continue
-	// 	}
-
-	// 	total++
-
-	// 	containerReady := 0
-	// 	for _, containerStatus := range item.Status.ContainerStatuses {
-	// 		if containerStatus.Ready {
-	// 			containerReady++
-	// 		}
-	// 	}
-
-	// 	if len(item.Spec.Containers) == containerReady {
-	// 		healthy++
-	// 	} else {
-	// 		tableData = append(tableData, []string{item.Name, item.Namespace, string(item.Status.Phase),
-	// 			fmt.Sprintf("%d", containerReady), fmt.Sprintf("%d", len(item.Spec.Containers))})
-	// 	}
-	// }
-
-	// fmt.Fprintf(header, "%d of %d pods are running.\n", healthy, total)
-
-	// if verbose {
-	// 	if len(tableData) != 0 {
-	// 		RenderTable(table, tableData)
-	// 	}
-	// }
-
-	// for _, item := range pods.Items {
-	// 	if item.Status.Phase == v1.PodSucceeded {
-	// 		continue
-	// 	}
-
-	// 	if strings.Contains(item.ObjectMeta.Namespace, "ci") || strings.Contains(item.ObjectMeta.Namespace, "lab") {
-	// 		continue
-	// 	}
-
-	// 	containerReady := 0
-	// 	for _, containerStatus := range item.Status.ContainerStatuses {
-	// 		if containerStatus.Ready {
-	// 			containerReady++
-	// 		}
-	// 	}
-
-	// 	if len(item.Spec.Containers) != containerReady {
-	// 		return 45, nil
-	// 	}
-	// }
-
-	// return 0, err
 }
 
 func printPodStatus(_ context.Context, header io.Writer, details colorWriter, pods *v1.PodList, verbose bool) (int, error) {
@@ -162,17 +101,17 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 
 		// TODO: Two lines commented below:
 		// The first one was commented because there was a discrepancy between the result of k8status and status.sh
-		// The secont one was also added because there was still a discrepancy between the result of k8status and status.sh
-		//if item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
+		// The second one and the healhty++ was also added because there was still a discrepancy between the result
+		// of k8status and status.sh
+		// Check this with Adam / David
+		//item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
 		if item.Status.Phase == v1.PodSucceeded {
-			healthy++ // was not here
+			// healthy++ // was not here
 			continue
 		}
 		total++
 
-		if podIsHealthy(item) {
-			healthy++
-		} else {
+		if !podIsHealthy(item) {
 			tableData = append(tableData, tableRow(podTableView{item.Name, item.Namespace, string(item.Status.Phase),
 				fmt.Sprintf("%d", getReadyContainers(item)), fmt.Sprintf("%d", len(item.Spec.Containers))}))
 
@@ -180,7 +119,11 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 				continue
 			}
 			foundUnhealthyPod = true
+
+			continue
 		}
+
+		healthy++
 	}
 
 	stats := podsStats{

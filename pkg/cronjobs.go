@@ -131,8 +131,6 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 		}
 	}
 
-	// log.Printf("DEBUG - foundCronjobWithNoLastSuccessfulTime: '%t'", foundCronjobWithNoLastSuccessfulTime)
-
 	stats := cronjobsStats{
 		foundCronjobWithNoLastSuccessfulTime: foundCronjobWithNoLastSuccessfulTime,
 		foundCronjobWith100FailedRetries:     foundCronjobWith100FailedRetries,

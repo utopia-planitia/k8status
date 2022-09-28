@@ -36,55 +36,6 @@ func PrintNodeStatus(ctx context.Context, header io.Writer, details colorWriter,
 	}
 
 	return printNodeStatus(ctx, header, details, nodelist, verbose)
-
-	// up := 0
-	// count := len(nodelist.Items)
-	// exitCode := 0
-	// table, err := CreateTable(details, []string{"Node", "Status", "Messages"}, tablewriter.FgYellowColor)
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// data := [][]string{}
-
-	// for _, node := range nodelist.Items {
-	// 	isReady, cordoned, messages := getNodeConditions(node)
-	// 	if isReady && !cordoned {
-	// 		up += 1
-	// 	} else {
-	// 		_ = messages
-	// 		//data = append(data, []string{node.Name, fmt.Sprintf("%t", isReady), fmt.Sprintf("%t", cordoned)})
-	// 		data = append(data, []string{node.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")})
-	// 	}
-	// }
-
-	// fmt.Fprintf(header, "%d of %d Node are up and healthy.\n", up, count)
-
-	// if verbose {
-	// 	if len(data) != 0 {
-	// 		RenderTable(table, data)
-	// 	}
-	// }
-
-	// for _, node := range nodelist.Items {
-	// 	ready, cordoned, conditions := getNodeConditions(node)
-
-	// 	if !ready {
-	// 		exitCode = 45
-	// 	}
-
-	// 	if cordoned {
-	// 		exitCode = 45
-	// 	}
-
-	// 	if len(conditions) != 0 {
-	// 		for _, msg := range conditions {
-	// 			fmt.Fprintln(details, msg)
-	// 		}
-	// 		exitCode = 45
-	// 	}
-	// }
-
-	// return exitCode, nil
 }
 
 func printNodeStatus(_ context.Context, header io.Writer, details colorWriter, nodelist *v1.NodeList, verbose bool) (int, error) {
@@ -146,16 +97,6 @@ func gatherNodesStats(nodelist *v1.NodeList) *nodeStats {
 	tableData := [][]string{}
 
 	for _, item := range nodelist.Items {
-
-		// 	isReady, cordoned, messages := getNodeConditions(node)
-		// 	nodeHealthy := isReady && !cordoned {
-		// 		up += 1
-		// 	} else {
-		// 		_ = messages
-		// 		//data = append(data, []string{node.Name, fmt.Sprintf("%t", isReady), fmt.Sprintf("%t", cordoned)})
-		// 		data = append(data, []string{node.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")})
-		// 	}
-
 		isReady, cordoned, messages := getNodeConditions(item)
 
 		if nodeIsHealthy(isReady, cordoned) {

@@ -34,27 +34,6 @@ func PrintVolumeClaimStatus(ctx context.Context, header io.Writer, details color
 	}
 
 	return printVolumeClaimStatus(ctx, header, details, pvcs, verbose)
-
-	// healthy := 0
-	// for _, item := range pvcs.Items {
-	// 	if item.Status.Phase == v1.ClaimBound {
-	// 		healthy++
-	// 	}
-	// }
-
-	// fmt.Fprintf(header, "%d of %d volume claims are bound.\n", healthy, len(pvcs.Items))
-
-	// if len(pvcs.Items) != healthy {
-	// 	for _, item := range pvcs.Items {
-	// 		if item.Status.Phase != v1.ClaimBound {
-	// 			fmt.Fprintf(details, "Persistent Volume Claim %s in namespace %s is in phase %s\n", item.Name, item.Namespace, item.Status.Phase)
-	// 		}
-	// 	}
-
-	// 	return 43, nil
-	// }
-
-	// return 0, nil
 }
 
 func printVolumeClaimStatus(_ context.Context, header io.Writer, details colorWriter, pvcs *v1.PersistentVolumeClaimList, verbose bool) (int, error) {
