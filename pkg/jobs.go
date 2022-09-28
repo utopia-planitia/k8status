@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/batch/v1"
@@ -147,7 +146,7 @@ func gatherJobsStats(jobs *v1.JobList) *jobStats {
 				fmt.Sprintf("%d", item.Status.Active), fmt.Sprintf("%d", *item.Spec.Completions),
 				fmt.Sprintf("%d", item.Status.Succeeded), fmt.Sprintf("%d", item.Status.Failed)}))
 
-			if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+			if isCiOrLabNamespace(item.Namespace) {
 				continue
 			}
 			foundUnhealthyJob = true

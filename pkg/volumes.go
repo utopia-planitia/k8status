@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
@@ -137,7 +136,7 @@ func gatherVolumesStats(pvs *v1.PersistentVolumeList) *volumeStats {
 		} else {
 			tableData = append(tableData, tableRow(volumeTableView{item.Name, item.Namespace, string(item.Status.Phase)}))
 
-			if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+			if isCiOrLabNamespace(item.Namespace) {
 				continue
 			}
 			foundUnhealthyVolume = true

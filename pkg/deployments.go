@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	appsv1 "k8s.io/api/apps/v1"
@@ -158,7 +157,7 @@ func gatherDeploymentsStats(deployments *appsv1.DeploymentList) *deploymentStats
 				fmt.Sprintf("%d", item.Status.AvailableReplicas), fmt.Sprintf("%d", item.Status.UpdatedReplicas),
 				fmt.Sprintf("%d", item.Status.ReadyReplicas)}))
 
-			if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+			if isCiOrLabNamespace(item.Namespace) {
 				continue
 			}
 			foundUnhealthyDeployment = true

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	appsv1 "k8s.io/api/apps/v1"
@@ -157,7 +156,7 @@ func gatherStatefulsetsStats(statefulsets *appsv1.StatefulSetList) *statefulsetS
 				fmt.Sprintf("%d", item.Status.ReadyReplicas), fmt.Sprintf("%d", item.Status.CurrentReplicas),
 				fmt.Sprintf("%d", item.Status.UpdatedReplicas)}))
 
-			if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+			if isCiOrLabNamespace(item.Namespace) {
 				continue
 			}
 			foundUnhealthyStatefulset = true

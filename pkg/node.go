@@ -163,7 +163,7 @@ func gatherNodesStats(nodelist *v1.NodeList) *nodeStats {
 		} else {
 			tableData = append(tableData, tableRow(nodeTableView{item.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")}))
 
-			if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+			if isCiOrLabNamespace(item.Namespace) {
 				continue
 			}
 			foundUnhealthyNode = true

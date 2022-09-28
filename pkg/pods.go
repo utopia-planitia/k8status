@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
@@ -177,7 +176,7 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 			tableData = append(tableData, tableRow(podTableView{item.Name, item.Namespace, string(item.Status.Phase),
 				fmt.Sprintf("%d", getReadyContainers(item)), fmt.Sprintf("%d", len(item.Spec.Containers))}))
 
-			if strings.Contains(item.Namespace, "ci") || strings.Contains(item.Namespace, "lab") {
+			if isCiOrLabNamespace(item.Namespace) {
 				continue
 			}
 			foundUnhealthyPod = true
