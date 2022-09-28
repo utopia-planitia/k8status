@@ -127,7 +127,7 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 	}
 
 	stats := podsStats{
-		podsTotal:         len(pods.Items),
+		podsTotal:         total,
 		healthyPods:       healthy,
 		tableData:         tableData,
 		foundUnhealthyPod: foundUnhealthyPod,
