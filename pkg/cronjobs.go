@@ -104,31 +104,18 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 
 	for _, item := range cronjobs.Items {
 
-		// TODO: The line commented above seems to not be correct because we still want it to be printed on the table
-		// although we don't want it to generate an error
-		if isCiOrLabNamespace(item.Namespace) {
-			healthy++ // Is this correct? Ci or Lab count for header writer, only not for errors
-			continue
-		}
+		isSuspended, isCiLikeNamespace, hasNoSuccessfulRun, failed100Retries := cronjobStatus(item)
 
-		// ignore all suspended cronjobs - Should this come before the previous check?
-		if *item.Spec.Suspend {
-			healthy++
-			continue
-		}
-
-		// never had successful run
-		if item.Status.LastSuccessfulTime == nil {
+		if hasNoSuccessfulRun && !isSuspended && !isCiLikeNamespace {
 			foundCronjobWithNoLastSuccessfulTime = true
-			tableData = append(tableData, tableRow(cronjobTableView{item.Name, item.Namespace, "Never successful", ""}))
-			continue
 		}
 
-		next100RunTimes := cronexpr.MustParse(item.Spec.Schedule).NextN(item.Status.LastSuccessfulTime.Time, 100)
-		the100ScheduleTime := next100RunTimes[len(next100RunTimes)-1]
-		the100ScheduledNextRunTimeAlreadyHappened := the100ScheduleTime.Before(time.Now())
+		// add job always to table logging
+		if hasNoSuccessfulRun {
+			tableData = append(tableData, tableRow(cronjobTableView{item.Name, item.Namespace, "Never successful", ""}))
+		}
 
-		if the100ScheduledNextRunTimeAlreadyHappened {
+		if !hasNoSuccessfulRun && failed100Retries {
 			foundCronjobWith100FailedRetries = true
 			tableData = append(
 				tableData,
@@ -137,11 +124,14 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 					item.Status.LastSuccessfulTime.String(),
 				}),
 			)
-			continue
 		}
 
-		healthy++
+		if isSuspended || isCiLikeNamespace || (!hasNoSuccessfulRun && !failed100Retries) {
+			healthy++
+		}
 	}
+
+	// log.Printf("DEBUG - foundCronjobWithNoLastSuccessfulTime: '%t'", foundCronjobWithNoLastSuccessfulTime)
 
 	stats := cronjobsStats{
 		foundCronjobWithNoLastSuccessfulTime: foundCronjobWithNoLastSuccessfulTime,
@@ -154,13 +144,17 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 	return &stats
 }
 
-// func cronjobIsHealthy(item batchv1.CronJob) bool {
-// 	if item.Status.DesiredNumberScheduled == item.Status.CurrentNumberScheduled &&
-// 		item.Status.DesiredNumberScheduled == item.Status.NumberReady &&
-// 		item.Status.DesiredNumberScheduled == item.Status.UpdatedNumberScheduled &&
-// 		item.Status.DesiredNumberScheduled == item.Status.NumberAvailable {
-// 		return true
-// 	}
+func cronjobStatus(item batchv1.CronJob) (isSuspended, isCiLikeNamespace, hasNoSuccessfulRun, failed100Retries bool) {
+	isSuspended = *item.Spec.Suspend
+	isCiLikeNamespace = isCiOrLabNamespace(item.Namespace)
+	hasNoSuccessfulRun = item.Status.LastSuccessfulTime == nil
+	failed100Retries = false
 
-// 	return false
-// }
+	if !hasNoSuccessfulRun {
+		next100RunTimes := cronexpr.MustParse(item.Spec.Schedule).NextN(item.Status.LastSuccessfulTime.Time, 100)
+		the100ScheduleTime := next100RunTimes[len(next100RunTimes)-1]
+		failed100Retries = the100ScheduleTime.Before(time.Now())
+	}
+
+	return isSuspended, isCiLikeNamespace, hasNoSuccessfulRun, failed100Retries
+}

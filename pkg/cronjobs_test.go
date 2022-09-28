@@ -50,25 +50,29 @@ func Test_printCronjobStatus(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "ci-test",
 							},
-							Spec: batchv1.CronJobSpec{Suspend: &no},
+							Spec:   batchv1.CronJobSpec{Suspend: &no},
+							Status: batchv1.CronJobStatus{LastSuccessfulTime: nil},
 						},
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test-ci-test",
 							},
-							Spec: batchv1.CronJobSpec{Suspend: &no},
+							Spec:   batchv1.CronJobSpec{Suspend: &no},
+							Status: batchv1.CronJobStatus{LastSuccessfulTime: nil},
 						},
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test-ci",
 							},
-							Spec: batchv1.CronJobSpec{Suspend: &no},
+							Spec:   batchv1.CronJobSpec{Suspend: &no},
+							Status: batchv1.CronJobStatus{LastSuccessfulTime: nil},
 						},
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "lab-test",
 							},
-							Spec: batchv1.CronJobSpec{Suspend: &no},
+							Spec:   batchv1.CronJobSpec{Suspend: &no},
+							Status: batchv1.CronJobStatus{LastSuccessfulTime: nil},
 						},
 						{
 							ObjectMeta: metav1.ObjectMeta{
@@ -91,7 +95,7 @@ func Test_printCronjobStatus(t *testing.T) {
 			wantErr:     false,
 		},
 		{
-			name: "Cronjobs with nil LastsuccessfulTime yielding: 52 exit code, no error",
+			name: "Cronjobs with no LastsuccessfulTime yielding: 52 exit code, no error",
 			args: args{
 				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
