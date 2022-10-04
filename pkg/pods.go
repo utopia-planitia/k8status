@@ -72,7 +72,7 @@ func createAndWritePodsTableInfo(header io.Writer, details colorWriter, stats *p
 		return err
 	}
 
-	fmt.Fprintf(header, "%d of %d pods are healthy.\n", stats.healthyPods, stats.podsTotal)
+	fmt.Fprintf(header, "%d of %d pods are healthy (%d ignored).\n", stats.healthyPods, stats.podsTotal, stats.ignoredPods)
 
 	if verbose {
 		if len(stats.tableData) != 0 {
@@ -85,6 +85,7 @@ func createAndWritePodsTableInfo(header io.Writer, details colorWriter, stats *p
 
 type podsStats struct {
 	podsTotal         int
+	ignoredPods       int
 	healthyPods       int
 	tableData         [][]string
 	foundUnhealthyPod bool
@@ -94,19 +95,14 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 	foundUnhealthyPod := false
 
 	healthy := 0
+	ignored := 0
 	total := 0
 	tableData := [][]string{}
 
 	for _, item := range pods.Items {
 
-		// TODO: Two lines commented below:
-		// The first one was commented because there was a discrepancy between the result of k8status and status.sh
-		// The second one and the healhty++ was also added because there was still a discrepancy between the result
-		// of k8status and status.sh
-		// Check this with Adam / David
-		//item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
-		if item.Status.Phase == v1.PodSucceeded {
-			// healthy++ // was not here
+		if item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
+			ignored++
 			continue
 		}
 		total++
@@ -128,6 +124,7 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 
 	stats := podsStats{
 		podsTotal:         total,
+		ignoredPods:       ignored,
 		healthyPods:       healthy,
 		tableData:         tableData,
 		foundUnhealthyPod: foundUnhealthyPod,
