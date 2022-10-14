@@ -7,7 +7,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -27,23 +26,23 @@ func (c namespaceTableView) row() []string {
 	return []string{c.name, c.phase}
 }
 
-func PrintNamespaceStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintNamespaceStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	namespaces, err := client.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printNamespaceStatus(ctx, header, details, namespaces, verbose)
+	return printNamespaceStatus(header, details, namespaces, verbose, colored)
 }
 
-func printNamespaceStatus(_ context.Context, header io.Writer, details colorWriter, namespaces *v1.NamespaceList, verbose bool) (int, error) {
+func printNamespaceStatus(header io.Writer, details io.Writer, namespaces *v1.NamespaceList, verbose, colored bool) (int, error) {
 	if namespaces == nil {
 		return 0, ErrNamespaceListIsNil
 	}
 
 	stats := gatherNamespacesStats(namespaces)
 
-	err := createAndWriteNamespacesTableInfo(header, details, stats, verbose)
+	err := createAndWriteNamespacesTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -63,9 +62,9 @@ func evaluateNamespacesStatus(stats *namespacesStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteNamespacesTableInfo(header io.Writer, details colorWriter, stats *namespacesStats, verbose bool) error {
+func createAndWriteNamespacesTableInfo(header io.Writer, details io.Writer, stats *namespacesStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(namespaceTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(namespaceTableView{}), colored)
 	if err != nil {
 		return err
 	}

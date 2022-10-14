@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,23 +28,23 @@ func (c podTableView) row() []string {
 	return []string{c.name, c.namespace, c.phase, c.ready, c.expected}
 }
 
-func PrintPodStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintPodStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	pods, err := client.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printPodStatus(ctx, header, details, pods, verbose)
+	return printPodStatus(header, details, pods, verbose, colored)
 }
 
-func printPodStatus(_ context.Context, header io.Writer, details colorWriter, pods *v1.PodList, verbose bool) (int, error) {
+func printPodStatus(header io.Writer, details io.Writer, pods *v1.PodList, verbose, colored bool) (int, error) {
 	if pods == nil {
 		return 0, ErrPodListIsNil
 	}
 
 	stats := gatherPodsStats(pods)
 
-	err := createAndWritePodsTableInfo(header, details, stats, verbose)
+	err := createAndWritePodsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -65,9 +64,9 @@ func evaluatePodsStatus(stats *podsStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWritePodsTableInfo(header io.Writer, details colorWriter, stats *podsStats, verbose bool) error {
+func createAndWritePodsTableInfo(header io.Writer, details io.Writer, stats *podsStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(podTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(podTableView{}), colored)
 	if err != nil {
 		return err
 	}

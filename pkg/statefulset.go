@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,24 +29,24 @@ func (c statefulsetTableView) row() []string {
 	return []string{c.name, c.namespace, c.replicas, c.ready, c.current, c.updated}
 }
 
-func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	statefulsets, err := client.clientset.AppsV1().StatefulSets("").List(ctx, metav1.ListOptions{})
 	_ = statefulsets
 	if err != nil {
 		return 0, err
 	}
 
-	return printStatefulsetStatus(ctx, header, details, statefulsets, verbose)
+	return printStatefulsetStatus(header, details, statefulsets, verbose, colored)
 }
 
-func printStatefulsetStatus(_ context.Context, header io.Writer, details colorWriter, statefulsets *appsv1.StatefulSetList, verbose bool) (int, error) {
+func printStatefulsetStatus(header io.Writer, details io.Writer, statefulsets *appsv1.StatefulSetList, verbose, colored bool) (int, error) {
 	if statefulsets == nil {
 		return 0, ErrStatefulsetListIsNil
 	}
 
 	stats := gatherStatefulsetsStats(statefulsets)
 
-	err := createAndWriteStatefulsetsTableInfo(header, details, stats, verbose)
+	err := createAndWriteStatefulsetsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -67,9 +66,8 @@ func evaluateStatefulsetsStatus(stats *statefulsetStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteStatefulsetsTableInfo(header io.Writer, details colorWriter, stats *statefulsetStats, verbose bool) error {
-
-	table, err := CreateTable(details, tableHeader(statefulsetTableView{}), tablewriter.FgYellowColor)
+func createAndWriteStatefulsetsTableInfo(header io.Writer, details io.Writer, stats *statefulsetStats, verbose, colored bool) error {
+	table, err := CreateTable(details, tableHeader(statefulsetTableView{}), colored)
 	if err != nil {
 		return err
 	}

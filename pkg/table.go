@@ -1,6 +1,10 @@
 package k8status
 
-import "github.com/olekukonko/tablewriter"
+import (
+	"io"
+
+	"github.com/olekukonko/tablewriter"
+)
 
 type tableAble interface {
 	// head should return the header column for a struct (which implements tableAble)
@@ -30,27 +34,29 @@ func tableRow(t tableAble) []string {
 	return t.row()
 }
 
-func CreateTable(writer colorWriter, headers []string, titleColor int) (*tablewriter.Table, error) {
-
-	table := tablewriter.NewWriter(writer)
+func CreateTable(w io.Writer, headers []string, colored bool) (*tablewriter.Table, error) {
+	table := tablewriter.NewWriter(w)
 	table.SetHeader(headers)
-	if !writer.noColors {
+
+	if colored {
+		titleColor := tablewriter.Colors{tablewriter.Bold, tablewriter.FgYellowColor}
 		headerColors := []tablewriter.Colors{}
 		for i := 0; i < len(headers); i++ {
-			headerColors = append(headerColors, tablewriter.Colors{tablewriter.Bold, titleColor})
+			headerColors = append(headerColors, titleColor)
 		}
 		table.SetHeaderColor(headerColors...)
 	}
+
 	table.SetHeaderLine(false)
 	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 	table.SetCenterSeparator("|")
 
-	_, err := writer.Write([]byte("\n"))
+	_, err := w.Write([]byte("\n"))
 	if err != nil {
-		return table, err
+		return nil, err
 	}
 
-	return table, err
+	return table, nil
 }
 
 func RenderTable(table *tablewriter.Table, data [][]string) {

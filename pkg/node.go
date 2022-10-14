@@ -7,10 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var ErrNodeListIsNil error = errors.New("ErrNodeListIsNil")
@@ -29,23 +27,23 @@ func (c nodeTableView) row() []string {
 	return []string{c.name, c.status, c.messages}
 }
 
-func PrintNodeStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
-	nodelist, err := getNodeList(ctx, client.clientset)
+func PrintNodeStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
+	nodelist, err := client.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printNodeStatus(ctx, header, details, nodelist, verbose)
+	return printNodeStatus(header, details, nodelist, verbose, colored)
 }
 
-func printNodeStatus(_ context.Context, header io.Writer, details colorWriter, nodelist *v1.NodeList, verbose bool) (int, error) {
+func printNodeStatus(header io.Writer, details io.Writer, nodelist *v1.NodeList, verbose, colored bool) (int, error) {
 	if nodelist == nil {
 		return 0, ErrNodeListIsNil
 	}
 
 	stats := gatherNodesStats(nodelist)
 
-	err := createAndWriteNodesTableInfo(header, details, stats, verbose)
+	err := createAndWriteNodesTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -65,9 +63,9 @@ func evaluateNodesStatus(stats *nodeStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteNodesTableInfo(header io.Writer, details colorWriter, stats *nodeStats, verbose bool) error {
+func createAndWriteNodesTableInfo(header io.Writer, details io.Writer, stats *nodeStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(nodeTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(nodeTableView{}), colored)
 	if err != nil {
 		return err
 	}
@@ -119,15 +117,6 @@ func gatherNodesStats(nodelist *v1.NodeList) *nodeStats {
 	}
 
 	return &stats
-}
-
-func getNodeList(ctx context.Context, clientset *kubernetes.Clientset) (*v1.NodeList, error) {
-	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
 }
 
 func getNodeConditions(node v1.Node) (bool, bool, []string) {

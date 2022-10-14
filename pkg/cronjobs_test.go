@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"bytes"
-	"context"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ func Test_printCronjobStatus(t *testing.T) {
 	RecentLastSuccessfulTime := metav1.NewTime(time.Now().Add(-10 * time.Hour))
 
 	type args struct {
-		details  colorWriter
 		cronjobs *batchv1.CronJobList
 		verbose  bool
 	}
@@ -32,10 +30,8 @@ func Test_printCronjobStatus(t *testing.T) {
 	}{
 		// TODO: Add test cases.
 		{
-			name: "CronJobList is nil yields: error",
-			args: args{
-				details: colorWriter{},
-			},
+			name:       "CronJobList is nil yields: error",
+			args:       args{},
 			want:       0,
 			wantHeader: "",
 			wantErr:    true,
@@ -43,10 +39,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "CronJobs from ci/lab namespaces yielding: 0 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "ci-test",
 							},
@@ -97,10 +92,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "Cronjobs with no LastsuccessfulTime yielding: 52 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -122,10 +116,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "Cronjobs with passed LastsuccessfulTime yielding: 53 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -150,10 +143,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "Suspended cronJobs yielding: 0 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -176,10 +168,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "Cronjobs with recent LastsuccessfulTime yielding: 0 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -202,10 +193,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "Cronjobs with recent LastsuccessfulTime yielding: 0 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -228,10 +218,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "Cronjobs in ci namespace + one with recent LastsuccessfulTime yielding: 0 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "ci-test",
 							},
@@ -239,7 +228,7 @@ func Test_printCronjobStatus(t *testing.T) {
 								Suspend: &no,
 							},
 						},
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -262,10 +251,9 @@ func Test_printCronjobStatus(t *testing.T) {
 		{
 			name: "One Cronjob suspended + one with recent LastsuccessfulTime yielding: 0 exit code, no error",
 			args: args{
-				details: colorWriter{},
 				cronjobs: &batchv1.CronJobList{
 					Items: []batchv1.CronJob{
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -273,7 +261,7 @@ func Test_printCronjobStatus(t *testing.T) {
 								Suspend: &yes,
 							},
 						},
-						batchv1.CronJob{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Namespace: "test",
 							},
@@ -296,13 +284,11 @@ func Test_printCronjobStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
 			header := &bytes.Buffer{}
+			details := &bytes.Buffer{}
+			colored := false
 
-			tt.args.details.details = &bytes.Buffer{}
-			tt.args.details.noColors = true
-
-			got, err := printCronjobStatus(ctx, header, tt.args.details, tt.args.cronjobs, tt.args.verbose)
+			got, err := printCronjobStatus(header, details, tt.args.cronjobs, tt.args.verbose, colored)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("printCronjobStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -313,7 +299,7 @@ func Test_printCronjobStatus(t *testing.T) {
 			if gotHeader := header.String(); tt.checkHeader && (gotHeader != tt.wantHeader) {
 				t.Errorf("printCronjobStatus() = %v, want %v", gotHeader, tt.wantHeader)
 			}
-			//todo: decide if we want to check details...
+			// todo: decide if we want to check details...
 		})
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -27,23 +26,23 @@ func (c volumeClaimsTableView) row() []string {
 	return []string{c.name, c.namespace, c.phase}
 }
 
-func PrintVolumeClaimStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintVolumeClaimStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	pvcs, err := client.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printVolumeClaimStatus(ctx, header, details, pvcs, verbose)
+	return printVolumeClaimStatus(header, details, pvcs, verbose, colored)
 }
 
-func printVolumeClaimStatus(_ context.Context, header io.Writer, details colorWriter, pvcs *v1.PersistentVolumeClaimList, verbose bool) (int, error) {
+func printVolumeClaimStatus(header io.Writer, details io.Writer, pvcs *v1.PersistentVolumeClaimList, verbose, colored bool) (int, error) {
 	if pvcs == nil {
 		return 0, ErrVolumeClaimsListIsNil
 	}
 
 	stats := gatherVolumeClaimsStats(pvcs)
 
-	err := createAndWriteVolumeClaimsTableInfo(header, details, stats, verbose)
+	err := createAndWriteVolumeClaimsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -63,9 +62,9 @@ func evaluateVolumeClaimsStatus(stats *volumeClaimsStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteVolumeClaimsTableInfo(header io.Writer, details colorWriter, stats *volumeClaimsStats, verbose bool) error {
+func createAndWriteVolumeClaimsTableInfo(header io.Writer, details io.Writer, stats *volumeClaimsStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(volumeClaimsTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(volumeClaimsTableView{}), colored)
 	if err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func createAndWriteVolumeClaimsTableInfo(header io.Writer, details colorWriter, 
 
 	if verbose {
 		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData) //"renders" (not really) by writing into the details writer
+			RenderTable(table, stats.tableData) // "renders" (not really) by writing into the details writer
 		}
 	}
 

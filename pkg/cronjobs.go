@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/aptible/supercronic/cronexpr"
-	"github.com/olekukonko/tablewriter"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,23 +29,23 @@ func (c cronjobTableView) row() []string {
 	return []string{c.name, c.namespace, c.status, c.lastSucessful}
 }
 
-func PrintCronjobStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintCronjobStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	cronjobs, err := client.clientset.BatchV1().CronJobs("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printCronjobStatus(ctx, header, details, cronjobs, verbose)
+	return printCronjobStatus(header, details, cronjobs, verbose, colored)
 }
 
-func printCronjobStatus(_ context.Context, header io.Writer, details colorWriter, cronjobs *batchv1.CronJobList, verbose bool) (int, error) {
+func printCronjobStatus(header io.Writer, details io.Writer, cronjobs *batchv1.CronJobList, verbose, colored bool) (int, error) {
 	if cronjobs == nil {
 		return 0, ErrCronJobListIsNil
 	}
 
 	stats := gatherCronjobStats(cronjobs)
 
-	err := createAndWriteCronjobsTableInfo(header, details, stats, verbose)
+	err := createAndWriteCronjobsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -70,9 +69,8 @@ func evaluateCronjobsStatus(stats *cronjobsStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteCronjobsTableInfo(header io.Writer, details colorWriter, stats *cronjobsStats, verbose bool) error {
-
-	table, err := CreateTable(details, tableHeader(cronjobTableView{}), tablewriter.FgYellowColor)
+func createAndWriteCronjobsTableInfo(header io.Writer, details io.Writer, stats *cronjobsStats, verbose, colored bool) error {
+	table, err := CreateTable(details, tableHeader(cronjobTableView{}), colored)
 	if err != nil {
 		return err
 	}

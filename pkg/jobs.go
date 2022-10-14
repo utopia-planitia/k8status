@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,23 +29,23 @@ func (c jobTableView) row() []string {
 	return []string{c.name, c.namespace, string(c.active), string(c.completions), string(c.succeeded), string(c.failed)}
 }
 
-func PrintJobStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintJobStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	jobs, err := client.clientset.BatchV1().Jobs("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printJobStatus(ctx, header, details, jobs, verbose)
+	return printJobStatus(header, details, jobs, verbose, colored)
 }
 
-func printJobStatus(_ context.Context, header io.Writer, details colorWriter, jobs *v1.JobList, verbose bool) (int, error) {
+func printJobStatus(header io.Writer, details io.Writer, jobs *v1.JobList, verbose, colored bool) (int, error) {
 	if jobs == nil {
 		return 0, ErrJobListIsNil
 	}
 
 	stats := gatherJobsStats(jobs)
 
-	err := createAndWriteJobsTableInfo(header, details, stats, verbose)
+	err := createAndWriteJobsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -66,9 +65,9 @@ func evaluateJobsStatus(stats *jobStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteJobsTableInfo(header io.Writer, details colorWriter, stats *jobStats, verbose bool) error {
+func createAndWriteJobsTableInfo(header io.Writer, details io.Writer, stats *jobStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(jobTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(jobTableView{}), colored)
 	if err != nil {
 		return err
 	}

@@ -73,6 +73,7 @@ func main() {
 func run(c *cli.Context) error {
 	verbose := c.Bool(verbose.Name)
 	noColors := c.Bool(noColors.Name)
+	colored := !noColors
 	kubeConfigFile := c.String(kubeConfigFile.Name)
 	ctx := c.Context
 
@@ -81,7 +82,7 @@ func run(c *cli.Context) error {
 		return err
 	}
 
-	return k8status.Run(ctx, k8sClient, verbose, noColors)
+	return k8status.Run(ctx, k8sClient, verbose, colored)
 }
 
 func printVersion(c *cli.Context) error {

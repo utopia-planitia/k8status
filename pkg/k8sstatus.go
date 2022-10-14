@@ -11,12 +11,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-type statusCheck func(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error)
-
-type colorWriter struct {
-	noColors bool
-	details  *bytes.Buffer
-}
+type statusCheck func(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error)
 
 type result struct {
 	head     io.ReadWriter
@@ -29,7 +24,7 @@ type futures []<-chan result
 
 type results []result
 
-func Run(ctx context.Context, client *KubernetesClient, verbose bool, noColors bool) error {
+func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bool) error {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 
 	checks := []statusCheck{
@@ -55,14 +50,11 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, noColors b
 
 		go func(future chan result, check statusCheck) {
 			head := &bytes.Buffer{}
-			writer := colorWriter{}
-			writer.details = &bytes.Buffer{}
-			writer.noColors = noColors
-			//details := &bytes.Buffer{}
-			exitCode, err := check(ctx, head, writer, client, verbose)
+			details := &bytes.Buffer{}
+			exitCode, err := check(ctx, head, details, client, verbose, colored)
 			future <- result{
 				head:     head,
-				details:  writer,
+				details:  details,
 				exitCode: exitCode,
 				err:      err,
 			}
@@ -132,15 +124,4 @@ func (results results) ExitCode() int {
 	}
 
 	return 0
-}
-
-func (b colorWriter) Write(p []byte) (n int, err error) {
-	n, err = b.details.Write(p)
-	return n, err
-}
-
-func (b colorWriter) Read(p []byte) (n int, err error) {
-	n, err = b.details.Read(p)
-
-	return n, err
 }

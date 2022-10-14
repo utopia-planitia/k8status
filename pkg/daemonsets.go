@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,24 +30,24 @@ func (c daemonsetTableView) row() []string {
 	return []string{c.name, c.namespace, c.scheduled, c.current, c.ready, c.updated, c.available}
 }
 
-func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	daemonsets, err := client.clientset.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{})
 	_ = daemonsets
 	if err != nil {
 		return 0, err
 	}
 
-	return printDaemonsetStatus(ctx, header, details, daemonsets, verbose)
+	return printDaemonsetStatus(header, details, daemonsets, verbose, colored)
 }
 
-func printDaemonsetStatus(_ context.Context, header io.Writer, details colorWriter, daemonsets *appsv1.DaemonSetList, verbose bool) (int, error) {
+func printDaemonsetStatus(header io.Writer, details io.Writer, daemonsets *appsv1.DaemonSetList, verbose, colored bool) (int, error) {
 	if daemonsets == nil {
 		return 0, ErrDaemonsetListIsNil
 	}
 
 	stats := gatherDaemonsetsStats(daemonsets)
 
-	err := createAndWriteDaemonsetsTableInfo(header, details, stats, verbose)
+	err := createAndWriteDaemonsetsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -68,9 +67,9 @@ func evaluateDaemonsetsStatus(stats *daemonsetStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteDaemonsetsTableInfo(header io.Writer, details colorWriter, stats *daemonsetStats, verbose bool) error {
+func createAndWriteDaemonsetsTableInfo(header io.Writer, details io.Writer, stats *daemonsetStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(daemonsetTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(daemonsetTableView{}), colored)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,24 +29,24 @@ func (c deploymentTableView) row() []string {
 	return []string{c.name, c.namespace, c.replicas, c.available, c.updated, c.ready}
 }
 
-func PrintDeploymentStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintDeploymentStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	deployments, err := client.clientset.AppsV1().Deployments("").List(ctx, metav1.ListOptions{})
 	_ = deployments
 	if err != nil {
 		return 0, err
 	}
 
-	return printDeploymentStatus(ctx, header, details, deployments, verbose)
+	return printDeploymentStatus(header, details, deployments, verbose, colored)
 }
 
-func printDeploymentStatus(_ context.Context, header io.Writer, details colorWriter, deployments *appsv1.DeploymentList, verbose bool) (int, error) {
+func printDeploymentStatus(header io.Writer, details io.Writer, deployments *appsv1.DeploymentList, verbose, colored bool) (int, error) {
 	if deployments == nil {
 		return 0, ErrDeploymentListIsNil
 	}
 
 	stats := gatherDeploymentsStats(deployments)
 
-	err := createAndWriteDeploymentsTableInfo(header, details, stats, verbose)
+	err := createAndWriteDeploymentsTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -67,9 +66,9 @@ func evaluateDeploymentsStatus(stats *deploymentStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteDeploymentsTableInfo(header io.Writer, details colorWriter, stats *deploymentStats, verbose bool) error {
+func createAndWriteDeploymentsTableInfo(header io.Writer, details io.Writer, stats *deploymentStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(deploymentTableView{}), tablewriter.FgYellowColor)
+	table, err := CreateTable(details, tableHeader(deploymentTableView{}), colored)
 	if err != nil {
 		return err
 	}

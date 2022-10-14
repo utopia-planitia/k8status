@@ -14,8 +14,7 @@ const (
 	cassandraNamespace = "cassandra"
 )
 
-func PrintCassandraStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
-
+func PrintCassandraStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	exists, err := namespaceExists(ctx, client.clientset, cassandraNamespace)
 	if err != nil {
 		return 0, err
@@ -36,8 +35,8 @@ func PrintCassandraStatus(ctx context.Context, header io.Writer, details colorWr
 
 	username := secret.Data["username"]
 	password := secret.Data["password"]
-
 	output := &bytes.Buffer{}
+
 	err = exec(
 		client,
 		cassandraNamespace,

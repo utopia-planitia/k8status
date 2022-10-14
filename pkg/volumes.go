@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -27,23 +26,23 @@ func (c volumeTableView) row() []string {
 	return []string{c.name, c.namespace, c.phase}
 }
 
-func PrintVolumeStatus(ctx context.Context, header io.Writer, details colorWriter, client *KubernetesClient, verbose bool) (int, error) {
+func PrintVolumeStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
 	pvs, err := client.clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printVolumeStatus(ctx, header, details, pvs, verbose)
+	return printVolumeStatus(header, details, pvs, verbose, colored)
 }
 
-func printVolumeStatus(_ context.Context, header io.Writer, details colorWriter, pvs *v1.PersistentVolumeList, verbose bool) (int, error) {
+func printVolumeStatus(header io.Writer, details io.Writer, pvs *v1.PersistentVolumeList, verbose, colored bool) (int, error) {
 	if pvs == nil {
 		return 0, ErrVolumeListIsNil
 	}
 
 	stats := gatherVolumesStats(pvs)
 
-	err := createAndWriteVolumesTableInfo(header, details, stats, verbose)
+	err := createAndWriteVolumesTableInfo(header, details, stats, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
@@ -63,9 +62,8 @@ func evaluateVolumesStatus(stats *volumeStats) (exitCode int) {
 	return exitCode
 }
 
-func createAndWriteVolumesTableInfo(header io.Writer, details colorWriter, stats *volumeStats, verbose bool) error {
-
-	table, err := CreateTable(details, tableHeader(volumeTableView{}), tablewriter.FgYellowColor)
+func createAndWriteVolumesTableInfo(header io.Writer, details io.Writer, stats *volumeStats, verbose, colored bool) error {
+	table, err := CreateTable(details, tableHeader(volumeTableView{}), colored)
 	if err != nil {
 		return err
 	}
