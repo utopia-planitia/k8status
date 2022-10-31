@@ -76,7 +76,7 @@ func createAndWriteStatefulsetsTableInfo(header io.Writer, details io.Writer, st
 
 	if verbose {
 		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData) //"renders" (not really) by writing into the details writer
+			RenderTable(table, stats.tableData)
 		}
 	}
 

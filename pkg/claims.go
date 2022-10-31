@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,110 +9,91 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrVolumeClaimsListIsNil error = errors.New("ErrVolumeClaimsListIsNil")
-
-type volumeClaimsTableView struct {
-	name      string
-	namespace string
-	phase     string
+type volumeClaimsStats struct {
+	total          int
+	healthyCount   int
+	claims         []v1.PersistentVolumeClaim
+	unhealthyCount int
 }
 
-func (c volumeClaimsTableView) header() []string {
-	return []string{"Volume Claim", "Namespace", "Phase"}
+func (s volumeClaimsStats) addClaim(c v1.PersistentVolumeClaim) {
+	s.claims = append(s.claims, c)
 }
 
-func (c volumeClaimsTableView) row() []string {
-	return []string{c.name, c.namespace, c.phase}
+func (s volumeClaimsStats) summary(w io.Writer) {
+	fmt.Fprintf(w, "%d of %d volume claims are bound.\n", s.healthyCount, s.total)
 }
 
-func PrintVolumeClaimStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
+func (s volumeClaimsStats) toTable() Table {
+	header := []string{"Volume Claim", "Namespace", "Phase"}
+
+	rows := [][]string{}
+	for _, c := range s.claims {
+		row := []string{c.Name, c.Namespace, string(c.Status.Phase)}
+		rows = append(rows, row)
+	}
+
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
+}
+
+func PrintVolumeClaimStatus(
+	ctx context.Context,
+	header io.Writer,
+	details io.Writer,
+	client *KubernetesClient,
+	verbose,
+	colored bool,
+) (int, error) {
 	pvcs, err := client.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
 
-	return printVolumeClaimStatus(header, details, pvcs, verbose, colored)
-}
+	stats := statsFromList(pvcs)
 
-func printVolumeClaimStatus(header io.Writer, details io.Writer, pvcs *v1.PersistentVolumeClaimList, verbose, colored bool) (int, error) {
-	if pvcs == nil {
-		return 0, ErrVolumeClaimsListIsNil
-	}
-
-	stats := gatherVolumeClaimsStats(pvcs)
-
-	err := createAndWriteVolumeClaimsTableInfo(header, details, stats, verbose, colored)
+	err = printStats(stats, header, details, verbose, colored)
 	if err != nil {
 		return 0, err
 	}
 
-	exitCode := evaluateVolumeClaimsStatus(stats)
+	exitCode := stats.ExitCode()
 
 	return exitCode, nil
 }
 
-func evaluateVolumeClaimsStatus(stats *volumeClaimsStats) (exitCode int) {
-	exitCode = 0
-
-	if stats.foundUnhealthyVolumeClaim {
+func (s volumeClaimsStats) ExitCode() int {
+	if s.unhealthyCount > 0 {
 		return 43
 	}
 
-	return exitCode
+	return 0
 }
 
-func createAndWriteVolumeClaimsTableInfo(header io.Writer, details io.Writer, stats *volumeClaimsStats, verbose, colored bool) error {
-
-	table, err := CreateTable(details, volumeClaimsTableView{}.header(), colored)
-	if err != nil {
-		return err
+func statsFromList(pvcs *v1.PersistentVolumeClaimList) volumeClaimsStats {
+	stats := volumeClaimsStats{
+		total:          len(pvcs.Items),
+		healthyCount:   0,
+		claims:         []v1.PersistentVolumeClaim{},
+		unhealthyCount: 0,
 	}
-
-	fmt.Fprintf(header, "%d of %d volume claims are bound.\n", stats.healthyVolumeClaims, stats.volumeClaimsTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData) // "renders" (not really) by writing into the details writer
-		}
-	}
-
-	return nil
-}
-
-type volumeClaimsStats struct {
-	volumeClaimsTotal         int
-	healthyVolumeClaims       int
-	tableData                 [][]string
-	foundUnhealthyVolumeClaim bool
-}
-
-func gatherVolumeClaimsStats(pvcs *v1.PersistentVolumeClaimList) *volumeClaimsStats {
-	foundUnhealthyVolumeClaim := false
-
-	healthy := 0
-	tableData := [][]string{}
 
 	for _, item := range pvcs.Items {
 		if volumeClaimIsHealthy(item) {
-			healthy++
+			stats.healthyCount++
 			continue
 		}
-		tv := volumeClaimsTableView{item.Name, item.Namespace, string(item.Status.Phase)}
-		tableData = append(tableData, tv.row())
+
+		stats.addClaim(item)
 
 		if !isCiOrLabNamespace(item.Namespace) {
-			foundUnhealthyVolumeClaim = true
+			stats.unhealthyCount++
 		}
 	}
 
-	stats := volumeClaimsStats{
-		volumeClaimsTotal:         len(pvcs.Items),
-		healthyVolumeClaims:       healthy,
-		tableData:                 tableData,
-		foundUnhealthyVolumeClaim: foundUnhealthyVolumeClaim,
-	}
-
-	return &stats
+	return stats
 }
 
 func volumeClaimIsHealthy(item v1.PersistentVolumeClaim) bool {

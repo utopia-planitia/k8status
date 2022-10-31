@@ -74,7 +74,7 @@ func createAndWriteNodesTableInfo(header io.Writer, details io.Writer, stats *no
 
 	if verbose {
 		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData) //"renders" (not really) by writing into the details writer
+			RenderTable(table, stats.tableData)
 		}
 	}
 

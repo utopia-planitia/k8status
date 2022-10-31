@@ -50,23 +50,21 @@ func printCronjobStatus(header io.Writer, details io.Writer, cronjobs *batchv1.C
 		return 0, err
 	}
 
-	exitCode := evaluateCronjobsStatus(stats)
+	exitCode := stats.ExitCode()
 
 	return exitCode, nil
 }
 
-func evaluateCronjobsStatus(stats *cronjobsStats) (exitCode int) {
-	exitCode = 0
-
-	if stats.foundCronjobWithNoLastSuccessfulTime {
+func (s cronjobsStats) ExitCode() (exitCode int) {
+	if s.foundCronjobWithNoLastSuccessfulTime {
 		return 52
 	}
 
-	if stats.foundCronjobWith100FailedRetries {
+	if s.foundCronjobWith100FailedRetries {
 		return 53
 	}
 
-	return exitCode
+	return 0
 }
 
 func createAndWriteCronjobsTableInfo(header io.Writer, details io.Writer, stats *cronjobsStats, verbose, colored bool) error {
@@ -79,7 +77,7 @@ func createAndWriteCronjobsTableInfo(header io.Writer, details io.Writer, stats 
 
 	if verbose {
 		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData) //"renders" (not really) by writing into the details writer
+			RenderTable(table, stats.tableData)
 		}
 	}
 

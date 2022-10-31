@@ -28,7 +28,6 @@ func Test_printCronjobStatus(t *testing.T) {
 		wantHeader  string
 		wantErr     bool
 	}{
-		// TODO: Add test cases.
 		{
 			name:       "CronJobList is nil yields: error",
 			args:       args{},

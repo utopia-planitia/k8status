@@ -26,6 +26,26 @@ type tableAble interface {
 	row() []string
 }
 
+type Table struct {
+	Header []string
+	Rows   [][]string
+}
+
+func (t Table) Fprint(w io.Writer, colored bool) error {
+	if len(t.Rows) != 0 {
+		return nil
+	}
+
+	table, err := CreateTable(w, t.Header, colored)
+	if err != nil {
+		return err
+	}
+
+	RenderTable(table, t.Rows)
+
+	return nil
+}
+
 func CreateTable(w io.Writer, headers []string, colored bool) (*tablewriter.Table, error) {
 	table := tablewriter.NewWriter(w)
 	table.SetHeader(headers)
@@ -51,7 +71,30 @@ func CreateTable(w io.Writer, headers []string, colored bool) (*tablewriter.Tabl
 	return table, nil
 }
 
+// RenderTable "renders" (not really) by writing into the details writer
 func RenderTable(table *tablewriter.Table, data [][]string) {
 	table.AppendBulk(data)
 	table.Render()
+}
+
+type Stats interface {
+	summary(w io.Writer)
+	toTable() Table
+}
+
+func printStats(
+	stats Stats,
+	header io.Writer,
+	details io.Writer,
+	verbose,
+	colored bool,
+) error {
+	stats.summary(header)
+
+	err := stats.toTable().Fprint(details, colored)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -72,7 +72,7 @@ func createAndWriteVolumesTableInfo(header io.Writer, details io.Writer, stats *
 
 	if verbose {
 		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData) //"renders" (not really) by writing into the details writer
+			RenderTable(table, stats.tableData)
 		}
 	}
 
