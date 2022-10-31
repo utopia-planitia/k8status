@@ -66,7 +66,7 @@ func evaluatePodsStatus(stats *podsStats) (exitCode int) {
 
 func createAndWritePodsTableInfo(header io.Writer, details io.Writer, stats *podsStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(podTableView{}), colored)
+	table, err := CreateTable(details, podTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -107,8 +107,14 @@ func gatherPodsStats(pods *v1.PodList) *podsStats {
 		total++
 
 		if !podIsHealthy(item) {
-			tableData = append(tableData, tableRow(podTableView{item.Name, item.Namespace, string(item.Status.Phase),
-				fmt.Sprintf("%d", getReadyContainers(item)), fmt.Sprintf("%d", len(item.Spec.Containers))}))
+			tv := podTableView{
+				item.Name,
+				item.Namespace,
+				string(item.Status.Phase),
+				fmt.Sprintf("%d", getReadyContainers(item)),
+				fmt.Sprintf("%d", len(item.Spec.Containers)),
+			}
+			tableData = append(tableData, tv.row())
 
 			if isCiOrLabNamespace(item.Namespace) {
 				continue

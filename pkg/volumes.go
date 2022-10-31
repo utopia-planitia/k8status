@@ -63,7 +63,7 @@ func evaluateVolumesStatus(stats *volumeStats) (exitCode int) {
 }
 
 func createAndWriteVolumesTableInfo(header io.Writer, details io.Writer, stats *volumeStats, verbose, colored bool) error {
-	table, err := CreateTable(details, tableHeader(volumeTableView{}), colored)
+	table, err := CreateTable(details, volumeTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,8 @@ func gatherVolumesStats(pvs *v1.PersistentVolumeList) *volumeStats {
 		if volumeIsHealthy(item) {
 			healthy++
 		} else {
-			tableData = append(tableData, tableRow(volumeTableView{item.Name, item.Namespace, string(item.Status.Phase)}))
+			tv := volumeTableView{item.Name, item.Namespace, string(item.Status.Phase)}
+			tableData = append(tableData, tv.row())
 
 			if isCiOrLabNamespace(item.Namespace) {
 				continue

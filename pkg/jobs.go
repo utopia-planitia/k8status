@@ -67,7 +67,7 @@ func evaluateJobsStatus(stats *jobStats) (exitCode int) {
 
 func createAndWriteJobsTableInfo(header io.Writer, details io.Writer, stats *jobStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(jobTableView{}), colored)
+	table, err := CreateTable(details, jobTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -100,14 +100,20 @@ func gatherJobsStats(jobs *v1.JobList) *jobStats {
 
 		if jobIsHealthy(item) {
 			healthy++
-		} else {
-			tableData = append(tableData, tableRow(jobTableView{item.Name, item.Namespace,
-				fmt.Sprintf("%d", item.Status.Active), fmt.Sprintf("%d", *item.Spec.Completions),
-				fmt.Sprintf("%d", item.Status.Succeeded), fmt.Sprintf("%d", item.Status.Failed)}))
+			continue
+		}
 
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
+		tv := jobTableView{
+			item.Name,
+			item.Namespace,
+			fmt.Sprintf("%d", item.Status.Active),
+			fmt.Sprintf("%d", *item.Spec.Completions),
+			fmt.Sprintf("%d", item.Status.Succeeded),
+			fmt.Sprintf("%d", item.Status.Failed),
+		}
+		tableData = append(tableData, tv.row())
+
+		if !isCiOrLabNamespace(item.Namespace) {
 			foundUnhealthyJob = true
 		}
 	}

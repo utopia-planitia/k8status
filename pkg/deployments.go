@@ -68,7 +68,7 @@ func evaluateDeploymentsStatus(stats *deploymentStats) (exitCode int) {
 
 func createAndWriteDeploymentsTableInfo(header io.Writer, details io.Writer, stats *deploymentStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(deploymentTableView{}), colored)
+	table, err := CreateTable(details, deploymentTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -98,20 +98,24 @@ func gatherDeploymentsStats(deployments *appsv1.DeploymentList) *deploymentStats
 	tableData := [][]string{}
 
 	for _, item := range deployments.Items {
-
 		if deploymentIsHealthy(item) {
 			healthy++
-		} else {
-			tableData = append(tableData, tableRow(deploymentTableView{item.Name, item.Namespace, fmt.Sprintf("%d", item.Status.Replicas),
-				fmt.Sprintf("%d", item.Status.AvailableReplicas), fmt.Sprintf("%d", item.Status.UpdatedReplicas),
-				fmt.Sprintf("%d", item.Status.ReadyReplicas)}))
-
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
-			foundUnhealthyDeployment = true
+			continue
 		}
 
+		tv := deploymentTableView{
+			item.Name,
+			item.Namespace,
+			fmt.Sprintf("%d", item.Status.Replicas),
+			fmt.Sprintf("%d", item.Status.AvailableReplicas),
+			fmt.Sprintf("%d", item.Status.UpdatedReplicas),
+			fmt.Sprintf("%d", item.Status.ReadyReplicas),
+		}
+		tableData = append(tableData, tv.row())
+
+		if !isCiOrLabNamespace(item.Namespace) {
+			foundUnhealthyDeployment = true
+		}
 	}
 
 	stats := deploymentStats{

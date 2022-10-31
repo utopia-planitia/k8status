@@ -64,7 +64,7 @@ func evaluateVolumeClaimsStatus(stats *volumeClaimsStats) (exitCode int) {
 
 func createAndWriteVolumeClaimsTableInfo(header io.Writer, details io.Writer, stats *volumeClaimsStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(volumeClaimsTableView{}), colored)
+	table, err := CreateTable(details, volumeClaimsTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -94,15 +94,14 @@ func gatherVolumeClaimsStats(pvcs *v1.PersistentVolumeClaimList) *volumeClaimsSt
 	tableData := [][]string{}
 
 	for _, item := range pvcs.Items {
-
 		if volumeClaimIsHealthy(item) {
 			healthy++
-		} else {
-			tableData = append(tableData, tableRow(volumeClaimsTableView{item.Name, item.Namespace, string(item.Status.Phase)}))
+			continue
+		}
+		tv := volumeClaimsTableView{item.Name, item.Namespace, string(item.Status.Phase)}
+		tableData = append(tableData, tv.row())
 
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
+		if !isCiOrLabNamespace(item.Namespace) {
 			foundUnhealthyVolumeClaim = true
 		}
 	}

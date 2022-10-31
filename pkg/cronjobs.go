@@ -70,7 +70,7 @@ func evaluateCronjobsStatus(stats *cronjobsStats) (exitCode int) {
 }
 
 func createAndWriteCronjobsTableInfo(header io.Writer, details io.Writer, stats *cronjobsStats, verbose, colored bool) error {
-	table, err := CreateTable(details, tableHeader(cronjobTableView{}), colored)
+	table, err := CreateTable(details, cronjobTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -110,17 +110,17 @@ func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
 
 		// add job always to table logging
 		if hasNoSuccessfulRun {
-			tableData = append(tableData, tableRow(cronjobTableView{item.Name, item.Namespace, "Never successful", ""}))
+			tableData = append(tableData, cronjobTableView{item.Name, item.Namespace, "Never successful", ""}.row())
 		}
 
 		if !hasNoSuccessfulRun && failed100Retries {
 			foundCronjobWith100FailedRetries = true
 			tableData = append(
 				tableData,
-				tableRow(cronjobTableView{
+				cronjobTableView{
 					item.Name, item.Namespace, "Too many missed start time (> 100)",
 					item.Status.LastSuccessfulTime.String(),
-				}),
+				}.row(),
 			)
 		}
 

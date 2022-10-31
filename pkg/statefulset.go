@@ -67,7 +67,7 @@ func evaluateStatefulsetsStatus(stats *statefulsetStats) (exitCode int) {
 }
 
 func createAndWriteStatefulsetsTableInfo(header io.Writer, details io.Writer, stats *statefulsetStats, verbose, colored bool) error {
-	table, err := CreateTable(details, tableHeader(statefulsetTableView{}), colored)
+	table, err := CreateTable(details, statefulsetTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -101,9 +101,14 @@ func gatherStatefulsetsStats(statefulsets *appsv1.StatefulSetList) *statefulsetS
 		if statefulsetIsHealthy(item) {
 			healthy++
 		} else {
-			tableData = append(tableData, tableRow(statefulsetTableView{item.Name, item.Namespace, fmt.Sprintf("%d", item.Status.Replicas),
-				fmt.Sprintf("%d", item.Status.ReadyReplicas), fmt.Sprintf("%d", item.Status.CurrentReplicas),
-				fmt.Sprintf("%d", item.Status.UpdatedReplicas)}))
+			tv := statefulsetTableView{
+				item.Name, item.Namespace,
+				fmt.Sprintf("%d", item.Status.Replicas),
+				fmt.Sprintf("%d", item.Status.ReadyReplicas),
+				fmt.Sprintf("%d", item.Status.CurrentReplicas),
+				fmt.Sprintf("%d", item.Status.UpdatedReplicas),
+			}
+			tableData = append(tableData, tv.row())
 
 			if isCiOrLabNamespace(item.Namespace) {
 				continue

@@ -69,7 +69,7 @@ func evaluateDaemonsetsStatus(stats *daemonsetStats) (exitCode int) {
 
 func createAndWriteDaemonsetsTableInfo(header io.Writer, details io.Writer, stats *daemonsetStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(daemonsetTableView{}), colored)
+	table, err := CreateTable(details, daemonsetTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -99,17 +99,23 @@ func gatherDaemonsetsStats(daemonsets *appsv1.DaemonSetList) *daemonsetStats {
 	tableData := [][]string{}
 
 	for _, item := range daemonsets.Items {
-
 		if daemonsetIsHealthy(item) {
 			healthy++
-		} else {
-			tableData = append(tableData, tableRow(daemonsetTableView{item.Name, item.Namespace, fmt.Sprintf("%d", item.Status.DesiredNumberScheduled),
-				fmt.Sprintf("%d", item.Status.CurrentNumberScheduled), fmt.Sprintf("%d", item.Status.NumberReady),
-				fmt.Sprintf("%d", item.Status.UpdatedNumberScheduled), fmt.Sprintf("%d", item.Status.NumberAvailable)}))
+			continue
+		}
 
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
+		dtv := daemonsetTableView{
+			item.Name,
+			item.Namespace,
+			fmt.Sprintf("%d", item.Status.DesiredNumberScheduled),
+			fmt.Sprintf("%d", item.Status.CurrentNumberScheduled),
+			fmt.Sprintf("%d", item.Status.NumberReady),
+			fmt.Sprintf("%d", item.Status.UpdatedNumberScheduled),
+			fmt.Sprintf("%d", item.Status.NumberAvailable),
+		}
+		tableData = append(tableData, dtv.row())
+
+		if !isCiOrLabNamespace(item.Namespace) {
 			foundUnhealthyDaemonset = true
 		}
 	}

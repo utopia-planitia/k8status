@@ -64,7 +64,7 @@ func evaluateNamespacesStatus(stats *namespacesStats) (exitCode int) {
 
 func createAndWriteNamespacesTableInfo(header io.Writer, details io.Writer, stats *namespacesStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(namespaceTableView{}), colored)
+	table, err := CreateTable(details, namespaceTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -94,14 +94,15 @@ func gatherNamespacesStats(namespaces *v1.NamespaceList) *namespacesStats {
 	tableData := [][]string{}
 
 	for _, item := range namespaces.Items {
-
 		if namespaceIsHealthy(item) {
 			healthy++
-		} else {
-			tableData = append(tableData, tableRow(namespaceTableView{item.Name, string(item.Status.Phase)}))
-
-			foundUnhealthyNamespace = true
+			continue
 		}
+
+		tv := namespaceTableView{item.Name, string(item.Status.Phase)}
+		tableData = append(tableData, tv.row())
+
+		foundUnhealthyNamespace = true
 	}
 
 	stats := namespacesStats{

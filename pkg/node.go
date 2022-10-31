@@ -65,7 +65,7 @@ func evaluateNodesStatus(stats *nodeStats) (exitCode int) {
 
 func createAndWriteNodesTableInfo(header io.Writer, details io.Writer, stats *nodeStats, verbose, colored bool) error {
 
-	table, err := CreateTable(details, tableHeader(nodeTableView{}), colored)
+	table, err := CreateTable(details, nodeTableView{}.header(), colored)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,8 @@ func gatherNodesStats(nodelist *v1.NodeList) *nodeStats {
 		if nodeIsHealthy(isReady, cordoned) {
 			healthy++
 		} else {
-			tableData = append(tableData, tableRow(nodeTableView{item.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")}))
+			tv := nodeTableView{item.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")}
+			tableData = append(tableData, tv.row())
 
 			if isCiOrLabNamespace(item.Namespace) {
 				continue

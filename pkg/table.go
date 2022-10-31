@@ -26,14 +26,6 @@ type tableAble interface {
 	row() []string
 }
 
-func tableHeader(t tableAble) []string {
-	return t.header()
-}
-
-func tableRow(t tableAble) []string {
-	return t.row()
-}
-
 func CreateTable(w io.Writer, headers []string, colored bool) (*tablewriter.Table, error) {
 	table := tablewriter.NewWriter(w)
 	table.SetHeader(headers)
