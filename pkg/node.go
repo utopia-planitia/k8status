@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -11,113 +10,79 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrNodeListIsNil error = errors.New("ErrNodeListIsNil")
-
-type nodeTableView struct {
-	name     string
-	status   string
-	messages string
+type nodesStatus struct {
+	total          int
+	healthyCount   int
+	nodes          []v1.Node
+	unhealthyCount int
 }
 
-func (c nodeTableView) header() []string {
-	return []string{"Node", "Status", "Messages"}
-}
-
-func (c nodeTableView) row() []string {
-	return []string{c.name, c.status, c.messages}
-}
-
-func PrintNodeStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	nodelist, err := client.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	nodesList, err := client.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nodesStatus{}, err
 	}
 
-	return printNodeStatus(header, details, nodelist, verbose, colored)
+	nodes := nodesList.Items
+
+	status := nodesStatus{
+		total:          len(nodes),
+		healthyCount:   0,
+		nodes:          []v1.Node{},
+		unhealthyCount: 0,
+	}
+	status.add(nodes)
+
+	return status, nil
 }
 
-func printNodeStatus(header io.Writer, details io.Writer, nodelist *v1.NodeList, verbose, colored bool) (int, error) {
-	if nodelist == nil {
-		return 0, ErrNodeListIsNil
-	}
-
-	stats := gatherNodesStats(nodelist)
-
-	err := createAndWriteNodesTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateNodesStatus(stats)
-
-	return exitCode, nil
+func (s nodesStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d Nodes are up and healthy.\n", s.healthyCount, s.total)
+	return err
 }
 
-func evaluateNodesStatus(stats *nodeStats) (exitCode int) {
-	exitCode = 0
-
-	if stats.foundUnhealthyNode {
-		return 45
-	}
-
-	return exitCode
+func (s nodesStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
 }
 
-func createAndWriteNodesTableInfo(header io.Writer, details io.Writer, stats *nodeStats, verbose, colored bool) error {
-
-	table, err := CreateTable(details, nodeTableView{}.header(), colored)
-	if err != nil {
-		return err
+func (s nodesStatus) ExitCode() int {
+	if s.unhealthyCount > 0 {
+		return 43
 	}
 
-	fmt.Fprintf(header, "%d of %d Nodes are up and healthy.\n", stats.healthyNodes, stats.nodesTotal)
+	return 0
+}
 
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
-		}
+func (s nodesStatus) toTable() Table {
+	header := []string{"Node", "Status", "Messages"}
+
+	rows := [][]string{}
+	for _, node := range s.nodes {
+		isReady, cordoned, messages := getNodeConditions(node)
+		row := []string{node.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")}
+		rows = append(rows, row)
 	}
 
-	return nil
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
 }
+func (s nodesStatus) add(nodes []v1.Node) {
+	s.total += len(nodes)
 
-type nodeStats struct {
-	nodesTotal         int
-	healthyNodes       int
-	tableData          [][]string
-	foundUnhealthyNode bool
-}
-
-func gatherNodesStats(nodelist *v1.NodeList) *nodeStats {
-	foundUnhealthyNode := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range nodelist.Items {
-		isReady, cordoned, messages := getNodeConditions(item)
+	for _, item := range nodes {
+		isReady, cordoned, _ := getNodeConditions(item)
 
 		if nodeIsHealthy(isReady, cordoned) {
-			healthy++
-		} else {
-			tv := nodeTableView{item.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")}
-			tableData = append(tableData, tv.row())
-
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
-			foundUnhealthyNode = true
+			s.healthyCount++
+			continue
 		}
-	}
 
-	stats := nodeStats{
-		nodesTotal:         len(nodelist.Items),
-		healthyNodes:       healthy,
-		tableData:          tableData,
-		foundUnhealthyNode: foundUnhealthyNode,
-	}
+		s.nodes = append(s.nodes, item)
 
-	return &stats
+		s.unhealthyCount++
+	}
 }
 
 func getNodeConditions(node v1.Node) (bool, bool, []string) {
@@ -148,7 +113,7 @@ func formatStatus(isReady bool, cordoned bool) string {
 	if cordoned {
 		statuses = append(statuses, "Cordoned")
 	}
-	return strings.Join(statuses, ",")
+	return strings.Join(statuses, ", ")
 }
 
 func nodeIsHealthy(isReady bool, cordoned bool) bool {

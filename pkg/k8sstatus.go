@@ -11,10 +11,16 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-type statusCheck func(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error)
+type newStatus func(ctx context.Context, client *KubernetesClient) (status, error)
+
+type status interface {
+	Summary(w io.Writer, verbose bool) error
+	Details(w io.Writer, verbose, colored bool) error
+	ExitCode() int
+}
 
 type result struct {
-	head     io.ReadWriter
+	summary  io.ReadWriter
 	details  io.ReadWriter
 	exitCode int
 	err      error
@@ -27,19 +33,19 @@ type results []result
 func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bool) error {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 
-	checks := []statusCheck{
-		PrintNodeStatus,
-		PrintCassandraStatus,
-		PrintRookCephStatus,
-		PrintVolumeStatus,
-		PrintNamespaceStatus,
-		PrintVolumeClaimStatus,
-		PrintPodStatus,
-		PrintJobStatus,
-		PrintDeploymentStatus,
-		PrintStatefulsetStatus,
-		PrintDaemonsetStatus,
-		PrintCronjobStatus,
+	checks := []newStatus{
+		NewNodeStatus,
+		// PrintCassandraStatus,
+		// PrintRookCephStatus,
+		// PrintVolumeStatus,
+		// PrintNamespaceStatus,
+		NewVolumeClaimsStatus,
+		// PrintPodStatus,
+		// PrintJobStatus,
+		// PrintDeploymentStatus,
+		// PrintStatefulsetStatus,
+		// PrintDaemonsetStatus,
+		// PrintCronjobStatus,
 	}
 
 	futures := futures{}
@@ -48,22 +54,39 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bo
 		future := make(chan result)
 		futures = append(futures, future)
 
-		go func(future chan result, check statusCheck) {
-			head := &bytes.Buffer{}
-			details := &bytes.Buffer{}
-			exitCode, err := check(ctx, head, details, client, verbose, colored)
-			future <- result{
-				head:     head,
-				details:  details,
-				exitCode: exitCode,
-				err:      err,
+		go func(future chan result, newCheck newStatus) {
+			result := result{}
+
+			check, err := newCheck(ctx, client)
+			if err != nil {
+				result.err = err
+				future <- result
+				return
+			}
+
+			result.exitCode = check.ExitCode()
+
+			result.summary = &bytes.Buffer{}
+			err = check.Summary(result.summary, verbose)
+			if err != nil {
+				result.err = err
+				future <- result
+				return
+			}
+
+			result.details = &bytes.Buffer{}
+			err = check.Details(result.details, verbose, colored)
+			if err != nil {
+				result.err = err
+				future <- result
+				return
 			}
 		}(future, check)
 	}
 
 	results := futures.Await()
 
-	err := results.Headers(os.Stdout)
+	err := results.Summaries(os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -94,9 +117,9 @@ func (futures futures) Await() results {
 	return results
 }
 
-func (results results) Headers(w io.Writer) error {
+func (results results) Summaries(w io.Writer) error {
 	for _, result := range results {
-		_, err := io.Copy(w, result.head)
+		_, err := io.Copy(w, result.summary)
 		if err != nil {
 			return err
 		}

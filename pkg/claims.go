@@ -9,27 +9,55 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type volumeClaimsStats struct {
+type volumeClaimsStatus struct {
 	total          int
 	healthyCount   int
 	claims         []v1.PersistentVolumeClaim
 	unhealthyCount int
 }
 
-func (s volumeClaimsStats) addClaim(c v1.PersistentVolumeClaim) {
-	s.claims = append(s.claims, c)
+func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	pvcsList, err := client.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return volumeClaimsStatus{}, err
+	}
+
+	pvcs := pvcsList.Items
+
+	status := volumeClaimsStatus{
+		total:          len(pvcs),
+		healthyCount:   0,
+		claims:         []v1.PersistentVolumeClaim{},
+		unhealthyCount: 0,
+	}
+	status.add(pvcs)
+
+	return status, nil
 }
 
-func (s volumeClaimsStats) summary(w io.Writer) {
-	fmt.Fprintf(w, "%d of %d volume claims are bound.\n", s.healthyCount, s.total)
+func (s volumeClaimsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d volume claims are bound.\n", s.healthyCount, s.total)
+	return err
 }
 
-func (s volumeClaimsStats) toTable() Table {
+func (s volumeClaimsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
+
+func (s volumeClaimsStatus) ExitCode() int {
+	if s.unhealthyCount > 0 {
+		return 43
+	}
+
+	return 0
+}
+
+func (s volumeClaimsStatus) toTable() Table {
 	header := []string{"Volume Claim", "Namespace", "Phase"}
 
 	rows := [][]string{}
-	for _, c := range s.claims {
-		row := []string{c.Name, c.Namespace, string(c.Status.Phase)}
+	for _, claim := range s.claims {
+		row := []string{claim.Name, claim.Namespace, string(claim.Status.Phase)}
 		rows = append(rows, row)
 	}
 
@@ -39,61 +67,21 @@ func (s volumeClaimsStats) toTable() Table {
 	}
 }
 
-func PrintVolumeClaimStatus(
-	ctx context.Context,
-	header io.Writer,
-	details io.Writer,
-	client *KubernetesClient,
-	verbose,
-	colored bool,
-) (int, error) {
-	pvcs, err := client.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return 0, err
-	}
+func (s volumeClaimsStatus) add(pvcs []v1.PersistentVolumeClaim) {
+	s.total += len(pvcs)
 
-	stats := statsFromList(pvcs)
-
-	err = printStats(stats, header, details, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := stats.ExitCode()
-
-	return exitCode, nil
-}
-
-func (s volumeClaimsStats) ExitCode() int {
-	if s.unhealthyCount > 0 {
-		return 43
-	}
-
-	return 0
-}
-
-func statsFromList(pvcs *v1.PersistentVolumeClaimList) volumeClaimsStats {
-	stats := volumeClaimsStats{
-		total:          len(pvcs.Items),
-		healthyCount:   0,
-		claims:         []v1.PersistentVolumeClaim{},
-		unhealthyCount: 0,
-	}
-
-	for _, item := range pvcs.Items {
+	for _, item := range pvcs {
 		if volumeClaimIsHealthy(item) {
-			stats.healthyCount++
+			s.healthyCount++
 			continue
 		}
 
-		stats.addClaim(item)
+		s.claims = append(s.claims, item)
 
 		if !isCiOrLabNamespace(item.Namespace) {
-			stats.unhealthyCount++
+			s.unhealthyCount++
 		}
 	}
-
-	return stats
 }
 
 func volumeClaimIsHealthy(item v1.PersistentVolumeClaim) bool {
