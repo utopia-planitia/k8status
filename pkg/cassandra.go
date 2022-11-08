@@ -23,14 +23,14 @@ type cassandraStatus struct {
 }
 
 func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, error) {
-	status := &cassandraStatus{}
-
 	exists, err := namespaceExists(ctx, client.clientset, cassandraNamespace)
 	if err != nil {
-		return status, err
+		return nil, err
 	}
 
-	status.found = exists
+	status := &cassandraStatus{
+		found: exists,
+	}
 
 	if !status.found {
 		return status, nil
@@ -47,8 +47,13 @@ func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, 
 }
 
 func (s *cassandraStatus) Summary(w io.Writer, verbose bool) error {
-	if !verbose && !s.found {
-		return nil
+	if !s.found {
+		if !verbose {
+			return nil
+		}
+
+		_, err := fmt.Fprintf(w, "cassandra was not found.\n")
+		return err
 	}
 
 	_, err := fmt.Fprintf(w, "%d of %d cassandra nodes are ready.\n", s.healthyCount, s.total)

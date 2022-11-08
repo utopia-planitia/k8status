@@ -16,47 +16,61 @@ const (
 	rookCephStatusOk  = "HEALTH_OK"
 )
 
-type CephStatus struct {
-	Health struct {
-		Status string `json:"status"`
-		Checks map[string]struct {
-			Severity string `json:"severity"`
-			Summary  struct {
-				Message string `json:"message"`
-			} `json:"summary"`
-		} `json:"checks"`
-	} `json:"health"`
+type rookCephStatus struct {
+	found  bool
+	health CephHealth
 }
 
-func PrintRookCephStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
+type CephStatus struct {
+	Health CephHealth `json:"health"`
+}
+
+type CephHealth struct {
+	Status string `json:"status"`
+	Checks map[string]struct {
+		Severity string `json:"severity"`
+		Summary  struct {
+			Message string `json:"message"`
+		} `json:"summary"`
+	} `json:"checks"`
+}
+
+func NewRookCephStatus(ctx context.Context, client *KubernetesClient) (status, error) {
 	exists, err := namespaceExists(ctx, client.clientset, rookCephNamespace)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	if !exists {
-		if verbose {
-			fmt.Fprintf(header, "Rook-Ceph was not found.\n")
-		}
-
-		return 0, nil
+	status := &rookCephStatus{
+		found: exists,
 	}
 
+	if !status.found {
+		return status, nil
+	}
+
+	health, err := getRookCephHealth(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	status.health = health
+
+	return status, nil
+}
+
+func getRookCephHealth(ctx context.Context, client *KubernetesClient) (CephHealth, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: rookCephLabel,
 	}
 
 	pods, err := listPods(ctx, client.clientset, rookCephNamespace, listOptions)
 	if err != nil {
-		if verbose {
-			fmt.Fprintf(header, "rook-ceph-tools was not found.\n")
-		}
-
-		return 0, nil
+		return CephHealth{}, fmt.Errorf("lookup rook-ceph-tools pod: %v", err)
 	}
 
 	if len(pods) == 0 {
-		return 0, fmt.Errorf("no pods found")
+		return CephHealth{}, fmt.Errorf("lookup rook-ceph-tools pod: pod is missing: %v", err)
 	}
 
 	output := &bytes.Buffer{}
@@ -69,45 +83,54 @@ func PrintRookCephStatus(ctx context.Context, header io.Writer, details io.Write
 		output,
 	)
 	if err != nil {
-		return 0, err
+		return CephHealth{}, fmt.Errorf("execute ceph health check in rook-ceph pod: %v", err)
 	}
 
 	cephStatus := &CephStatus{}
 	err = json.Unmarshal(output.Bytes(), cephStatus)
 	if err != nil {
-		return 0, err
+		return CephHealth{}, err
 	}
 
-	if cephStatus.Health.Status == rookCephStatusOk {
-		fmt.Fprintln(header, "Ceph is healthy.")
-		return 0, nil
+	return cephStatus.Health, nil
+}
+
+func (s *rookCephStatus) Summary(w io.Writer, verbose bool) error {
+	if !s.found {
+		if !verbose {
+			return nil
+		}
+
+		_, err := fmt.Fprintf(w, "rook-ceph was not found.\n")
+		return err
 	}
 
-	fmt.Fprintln(header, "Ceph is unhealthy.")
+	status := "Ceph is healthy."
+	if s.health.Status != rookCephStatusOk {
+		status = "Ceph is unhealthy."
+	}
 
-	if verbose {
-		err = exec(
-			client,
-			rookCephNamespace,
-			pods[0].Name,
-			"",
-			"ceph status",
-			details,
-		)
+	_, err := fmt.Fprintln(w, status)
+	return err
+}
+
+func (s *rookCephStatus) Details(w io.Writer, verbose, colored bool) error {
+	for _, check := range s.health.Checks {
+		_, err := fmt.Fprintln(w, check.Summary.Message)
 		if err != nil {
-			return 0, err
-		}
-	} else {
-		for _, check := range cephStatus.Health.Checks {
-			fmt.Fprintln(details, check.Summary.Message)
+			return err
 		}
 	}
 
+	return nil
+}
+
+func (s *rookCephStatus) ExitCode() int {
 	// @TODO: Exit Code 48 ( status.sh, line 115	)
 
-	if cephStatus.Health.Status != rookCephStatusOk {
-		return 47, nil
+	if s.health.Status != rookCephStatusOk {
+		return 47
 	}
 
-	return 0, nil
+	return 0
 }

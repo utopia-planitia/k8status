@@ -36,7 +36,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bo
 	checks := []newStatus{
 		NewNodeStatus,
 		NewCassandraStatus,
-		// PrintRookCephStatus,
+		NewRookCephStatus,
 		NewVolumesStatus,
 		NewNamespacesStatus,
 		NewVolumeClaimsStatus,
