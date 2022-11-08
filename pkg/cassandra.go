@@ -37,6 +37,9 @@ func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, 
 	}
 
 	readyNodes, totalNodes, details, err := getCassandraNodeStatus(ctx, client)
+	if err != nil {
+		return nil, err
+	}
 
 	status.total = totalNodes
 	status.healthyCount = readyNodes

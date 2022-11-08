@@ -20,12 +20,12 @@ type nodesStatus struct {
 func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error) {
 	nodesList, err := client.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nodesStatus{}, err
+		return &nodesStatus{}, err
 	}
 
 	nodes := nodesList.Items
 
-	status := nodesStatus{
+	status := &nodesStatus{
 		total:          len(nodes),
 		healthyCount:   0,
 		nodes:          []v1.Node{},
@@ -36,16 +36,16 @@ func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error
 	return status, nil
 }
 
-func (s nodesStatus) Summary(w io.Writer) error {
+func (s *nodesStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d Nodes are up and healthy.\n", s.healthyCount, s.total)
 	return err
 }
 
-func (s nodesStatus) Details(w io.Writer, colored bool) error {
+func (s *nodesStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 
-func (s nodesStatus) ExitCode() int {
+func (s *nodesStatus) ExitCode() int {
 	if s.unhealthyCount > 0 {
 		return 43
 	}
@@ -53,7 +53,7 @@ func (s nodesStatus) ExitCode() int {
 	return 0
 }
 
-func (s nodesStatus) toTable() Table {
+func (s *nodesStatus) toTable() Table {
 	header := []string{"Node", "Status", "Messages"}
 
 	rows := [][]string{}
@@ -68,7 +68,7 @@ func (s nodesStatus) toTable() Table {
 		Rows:   rows,
 	}
 }
-func (s nodesStatus) add(nodes []v1.Node) {
+func (s *nodesStatus) add(nodes []v1.Node) {
 	s.total += len(nodes)
 
 	for _, item := range nodes {
