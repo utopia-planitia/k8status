@@ -10,21 +10,22 @@ import (
 )
 
 type volumeClaimsStatus struct {
-	total          int
-	healthyCount   int
-	claims         []v1.PersistentVolumeClaim
-	unhealthyCount int
+	total     int
+	ignored   int
+	healthy   int
+	claims    []v1.PersistentVolumeClaim
+	unhealthy int
 }
 
 func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
 	pvcsList, err := client.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return volumeClaimsStatus{}, err
+		return nil, err
 	}
 
 	pvcs := pvcsList.Items
 
-	status := volumeClaimsStatus{
+	status := &volumeClaimsStatus{
 		claims: []v1.PersistentVolumeClaim{},
 	}
 	status.add(pvcs)
@@ -32,24 +33,24 @@ func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (statu
 	return status, nil
 }
 
-func (s volumeClaimsStatus) Summary(w io.Writer, verbose bool) error {
-	_, err := fmt.Fprintf(w, "%d of %d volume claims are bound.\n", s.healthyCount, s.total)
+func (s *volumeClaimsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d volume claims are bound (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }
 
-func (s volumeClaimsStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *volumeClaimsStatus) Details(w io.Writer, verbose, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 
-func (s volumeClaimsStatus) ExitCode() int {
-	if s.unhealthyCount > 0 {
+func (s *volumeClaimsStatus) ExitCode() int {
+	if s.unhealthy > 0 {
 		return 43
 	}
 
 	return 0
 }
 
-func (s volumeClaimsStatus) toTable() Table {
+func (s *volumeClaimsStatus) toTable() Table {
 	header := []string{"Volume Claim", "Namespace", "Phase"}
 
 	rows := [][]string{}
@@ -64,20 +65,22 @@ func (s volumeClaimsStatus) toTable() Table {
 	}
 }
 
-func (s volumeClaimsStatus) add(pvcs []v1.PersistentVolumeClaim) {
+func (s *volumeClaimsStatus) add(pvcs []v1.PersistentVolumeClaim) {
 	s.total += len(pvcs)
 
 	for _, item := range pvcs {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
+		}
+
 		if volumeClaimIsHealthy(item) {
-			s.healthyCount++
+			s.healthy++
 			continue
 		}
 
 		s.claims = append(s.claims, item)
-
-		if !isCiOrLabNamespace(item.Namespace) {
-			s.unhealthyCount++
-		}
+		s.unhealthy++
 	}
 }
 

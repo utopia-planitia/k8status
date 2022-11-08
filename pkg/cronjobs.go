@@ -24,7 +24,7 @@ type cronjobsStatus struct {
 func NewCronjobsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
 	cronjobsList, err := client.clientset.BatchV1().CronJobs("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return volumeClaimsStatus{}, err
+		return nil, err
 	}
 
 	cronjobs := cronjobsList.Items

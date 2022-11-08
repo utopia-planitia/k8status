@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,101 +9,53 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrDaemonsetListIsNil error = errors.New("ErrDaemonsetListIsNil")
-
-type daemonsetTableView struct {
-	name      string
-	namespace string
-	scheduled string
-	current   string
-	ready     string
-	updated   string
-	available string
+type daemonsetsStatus struct {
+	total      int
+	ignored    int
+	healthy    int
+	daemonSets []appsv1.DaemonSet
+	unhealthy  int
 }
 
-func (c daemonsetTableView) header() []string {
-	return []string{"Daemonset", "Namespace", "Scheduled", "Current", "Ready", "Up-to-date", "Available"}
-}
-
-func (c daemonsetTableView) row() []string {
-	return []string{c.name, c.namespace, c.scheduled, c.current, c.ready, c.updated, c.available}
-}
-
-func PrintDaemonsetStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	daemonsets, err := client.clientset.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{})
-	_ = daemonsets
+func NewdaemonsetsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	daemonsetsList, err := client.clientset.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printDaemonsetStatus(header, details, daemonsets, verbose, colored)
+	daemonsets := daemonsetsList.Items
+
+	status := &daemonsetsStatus{
+		daemonSets: []appsv1.DaemonSet{},
+	}
+	status.add(daemonsets)
+
+	return status, nil
 }
 
-func printDaemonsetStatus(header io.Writer, details io.Writer, daemonsets *appsv1.DaemonSetList, verbose, colored bool) (int, error) {
-	if daemonsets == nil {
-		return 0, ErrDaemonsetListIsNil
-	}
-
-	stats := gatherDaemonsetsStats(daemonsets)
-
-	err := createAndWriteDaemonsetsTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateDaemonsetsStatus(stats)
-
-	return exitCode, nil
+func (s *daemonsetsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d daemonsets are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluateDaemonsetsStatus(stats *daemonsetStats) (exitCode int) {
-	exitCode = 0
+func (s *daemonsetsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
 
-	if stats.foundUnhealthyDaemonset {
+func (s *daemonsetsStatus) ExitCode() int {
+	if s.unhealthy > 0 {
 		return 51
 	}
 
-	return exitCode
+	return 0
 }
 
-func createAndWriteDaemonsetsTableInfo(header io.Writer, details io.Writer, stats *daemonsetStats, verbose, colored bool) error {
+func (s *daemonsetsStatus) toTable() Table {
+	header := []string{"Daemonset", "Namespace", "Scheduled", "Current", "Ready", "Up-to-date", "Available"}
 
-	table, err := CreateTable(details, daemonsetTableView{}.header(), colored)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(header, "%d of %d daemonsets are healthy.\n", stats.healthySets, stats.setsTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
-		}
-	}
-
-	return nil
-}
-
-type daemonsetStats struct {
-	setsTotal               int
-	healthySets             int
-	tableData               [][]string
-	foundUnhealthyDaemonset bool
-}
-
-func gatherDaemonsetsStats(daemonsets *appsv1.DaemonSetList) *daemonsetStats {
-	foundUnhealthyDaemonset := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range daemonsets.Items {
-		if daemonsetIsHealthy(item) {
-			healthy++
-			continue
-		}
-
-		dtv := daemonsetTableView{
+	rows := [][]string{}
+	for _, item := range s.daemonSets {
+		row := []string{
 			item.Name,
 			item.Namespace,
 			fmt.Sprintf("%d", item.Status.DesiredNumberScheduled),
@@ -113,21 +64,32 @@ func gatherDaemonsetsStats(daemonsets *appsv1.DaemonSetList) *daemonsetStats {
 			fmt.Sprintf("%d", item.Status.UpdatedNumberScheduled),
 			fmt.Sprintf("%d", item.Status.NumberAvailable),
 		}
-		tableData = append(tableData, dtv.row())
+		rows = append(rows, row)
+	}
 
-		if !isCiOrLabNamespace(item.Namespace) {
-			foundUnhealthyDaemonset = true
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
+}
+
+func (s *daemonsetsStatus) add(pvcs []appsv1.DaemonSet) {
+	s.total += len(pvcs)
+
+	for _, item := range pvcs {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
 		}
-	}
 
-	stats := daemonsetStats{
-		setsTotal:               len(daemonsets.Items),
-		healthySets:             healthy,
-		tableData:               tableData,
-		foundUnhealthyDaemonset: foundUnhealthyDaemonset,
-	}
+		if daemonsetIsHealthy(item) {
+			s.healthy++
+			continue
+		}
 
-	return &stats
+		s.daemonSets = append(s.daemonSets, item)
+		s.unhealthy++
+	}
 }
 
 func daemonsetIsHealthy(item appsv1.DaemonSet) bool {

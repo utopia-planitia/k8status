@@ -23,7 +23,7 @@ type cassandraStatus struct {
 }
 
 func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, error) {
-	status := cassandraStatus{}
+	status := &cassandraStatus{}
 
 	exists, err := namespaceExists(ctx, client.clientset, cassandraNamespace)
 	if err != nil {
@@ -46,7 +46,7 @@ func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, 
 	return status, nil
 }
 
-func (s cassandraStatus) Summary(w io.Writer, verbose bool) error {
+func (s *cassandraStatus) Summary(w io.Writer, verbose bool) error {
 	if !verbose && !s.found {
 		return nil
 	}
@@ -55,7 +55,7 @@ func (s cassandraStatus) Summary(w io.Writer, verbose bool) error {
 	return err
 }
 
-func (s cassandraStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *cassandraStatus) Details(w io.Writer, verbose, colored bool) error {
 	if s.unhealthyCount == 0 {
 		return nil
 	}
@@ -64,7 +64,7 @@ func (s cassandraStatus) Details(w io.Writer, verbose, colored bool) error {
 	return err
 }
 
-func (s cassandraStatus) ExitCode() int {
+func (s *cassandraStatus) ExitCode() int {
 	if s.unhealthyCount > 0 {
 		return 46
 	}
