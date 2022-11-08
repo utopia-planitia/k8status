@@ -2,153 +2,129 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/aptible/supercronic/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrCronJobListIsNil error = errors.New("ErrCronJobListIsNil")
-
-type cronjobTableView struct {
-	name          string
-	namespace     string
-	status        string
-	lastSucessful string
+type cronjobsStatus struct {
+	total          int
+	ignored        int
+	healthy        int
+	cronjobs       []v1.CronJob
+	neverSucessful int
+	failed100times int
 }
 
-func (c cronjobTableView) header() []string {
-	return []string{"Cronjob", "Namespace", "Status", "Last Success"}
-}
-
-func (c cronjobTableView) row() []string {
-	return []string{c.name, c.namespace, c.status, c.lastSucessful}
-}
-
-func PrintCronjobStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	cronjobs, err := client.clientset.BatchV1().CronJobs("").List(ctx, metav1.ListOptions{})
+func NewCronjobsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	cronjobsList, err := client.clientset.BatchV1().CronJobs("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return volumeClaimsStatus{}, err
 	}
 
-	return printCronjobStatus(header, details, cronjobs, verbose, colored)
+	cronjobs := cronjobsList.Items
+
+	status := &cronjobsStatus{
+		cronjobs: []v1.CronJob{},
+	}
+	status.add(cronjobs)
+
+	return status, nil
 }
 
-func printCronjobStatus(header io.Writer, details io.Writer, cronjobs *batchv1.CronJobList, verbose, colored bool) (int, error) {
-	if cronjobs == nil {
-		return 0, ErrCronJobListIsNil
-	}
-
-	stats := gatherCronjobStats(cronjobs)
-
-	err := createAndWriteCronjobsTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := stats.ExitCode()
-
-	return exitCode, nil
+func (s *cronjobsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d cronjobs are healthy (%d ignored).\n", s.total, s.healthy, s.ignored)
+	return err
 }
 
-func (s cronjobsStats) ExitCode() (exitCode int) {
-	if s.foundCronjobWithNoLastSuccessfulTime {
+func (s *cronjobsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
+
+func (s *cronjobsStatus) ExitCode() int {
+	if s.neverSucessful != 0 {
 		return 52
 	}
 
-	if s.foundCronjobWith100FailedRetries {
+	if s.failed100times != 0 {
 		return 53
 	}
 
 	return 0
 }
 
-func createAndWriteCronjobsTableInfo(header io.Writer, details io.Writer, stats *cronjobsStats, verbose, colored bool) error {
-	table, err := CreateTable(details, cronjobTableView{}.header(), colored)
-	if err != nil {
-		return err
-	}
+func (s *cronjobsStatus) toTable() Table {
+	header := []string{"Cronjob", "Namespace", "Status", "Last Success"}
 
-	fmt.Fprintf(header, "%d of %d cronjobs are healthy.\n", stats.healthyJobs, stats.jobsTotal)
+	rows := [][]string{}
+	for _, item := range s.cronjobs {
+		neverSuccessful, failed100times := cronjobStatus(item)
+		status := "Unknown"
+		lastSucessful := ""
 
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
+		if neverSuccessful {
+			status = "Never successful"
+			lastSucessful = ""
+		} else if failed100times {
+			status = "Too many missed start time (> 100)"
+			lastSucessful = item.Status.LastSuccessfulTime.String()
 		}
+
+		row := []string{item.Name, item.Namespace, status, lastSucessful}
+		rows = append(rows, row)
 	}
 
-	return nil
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
 }
 
-type cronjobsStats struct {
-	foundCronjobWithNoLastSuccessfulTime bool
-	foundCronjobWith100FailedRetries     bool
-	jobsTotal                            int
-	healthyJobs                          int
-	tableData                            [][]string
+func (s *cronjobsStatus) add(cronjobs []v1.CronJob) {
+	s.total += len(cronjobs)
+
+	for _, item := range cronjobs {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
+		}
+
+		if *item.Spec.Suspend {
+			s.healthy++
+			continue
+		}
+
+		neverSuccessful, failed100times := cronjobStatus(item)
+		if !neverSuccessful && !failed100times {
+			s.healthy++
+			continue
+		}
+
+		if neverSuccessful {
+			s.neverSucessful++
+		}
+
+		if failed100times {
+			s.failed100times++
+		}
+
+		s.cronjobs = append(s.cronjobs, item)
+	}
 }
 
-func gatherCronjobStats(cronjobs *batchv1.CronJobList) *cronjobsStats {
-	foundCronjobWithNoLastSuccessfulTime := false
-	foundCronjobWith100FailedRetries := false
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range cronjobs.Items {
-
-		isSuspended, isCiLikeNamespace, hasNoSuccessfulRun, failed100Retries := cronjobStatus(item)
-
-		if hasNoSuccessfulRun && !isSuspended && !isCiLikeNamespace {
-			foundCronjobWithNoLastSuccessfulTime = true
-		}
-
-		// add job always to table logging
-		if hasNoSuccessfulRun {
-			tableData = append(tableData, cronjobTableView{item.Name, item.Namespace, "Never successful", ""}.row())
-		}
-
-		if !hasNoSuccessfulRun && failed100Retries {
-			foundCronjobWith100FailedRetries = true
-			tableData = append(
-				tableData,
-				cronjobTableView{
-					item.Name, item.Namespace, "Too many missed start time (> 100)",
-					item.Status.LastSuccessfulTime.String(),
-				}.row(),
-			)
-		}
-
-		if isSuspended || isCiLikeNamespace || (!hasNoSuccessfulRun && !failed100Retries) {
-			healthy++
-		}
+func cronjobStatus(item batchv1.CronJob) (neverSuccessful, failed100times bool) {
+	if item.Status.LastSuccessfulTime == nil {
+		return true, false
 	}
 
-	stats := cronjobsStats{
-		foundCronjobWithNoLastSuccessfulTime: foundCronjobWithNoLastSuccessfulTime,
-		foundCronjobWith100FailedRetries:     foundCronjobWith100FailedRetries,
-		jobsTotal:                            len(cronjobs.Items),
-		healthyJobs:                          healthy,
-		tableData:                            tableData,
-	}
+	next100RunTimes := cronexpr.MustParse(item.Spec.Schedule).NextN(item.Status.LastSuccessfulTime.Time, 100)
+	the100ScheduleTime := next100RunTimes[len(next100RunTimes)-1]
+	failed100times = the100ScheduleTime.Before(time.Now())
 
-	return &stats
-}
-
-func cronjobStatus(item batchv1.CronJob) (isSuspended, isCiLikeNamespace, hasNoSuccessfulRun, failed100Retries bool) {
-	isSuspended = *item.Spec.Suspend
-	isCiLikeNamespace = isCiOrLabNamespace(item.Namespace)
-	hasNoSuccessfulRun = item.Status.LastSuccessfulTime == nil
-	failed100Retries = false
-
-	if !hasNoSuccessfulRun {
-		next100RunTimes := cronexpr.MustParse(item.Spec.Schedule).NextN(item.Status.LastSuccessfulTime.Time, 100)
-		the100ScheduleTime := next100RunTimes[len(next100RunTimes)-1]
-		failed100Retries = the100ScheduleTime.Before(time.Now())
-	}
-
-	return isSuspended, isCiLikeNamespace, hasNoSuccessfulRun, failed100Retries
+	return false, failed100times
 }

@@ -25,10 +25,7 @@ func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (statu
 	pvcs := pvcsList.Items
 
 	status := volumeClaimsStatus{
-		total:          len(pvcs),
-		healthyCount:   0,
-		claims:         []v1.PersistentVolumeClaim{},
-		unhealthyCount: 0,
+		claims: []v1.PersistentVolumeClaim{},
 	}
 	status.add(pvcs)
 
@@ -56,8 +53,8 @@ func (s volumeClaimsStatus) toTable() Table {
 	header := []string{"Volume Claim", "Namespace", "Phase"}
 
 	rows := [][]string{}
-	for _, claim := range s.claims {
-		row := []string{claim.Name, claim.Namespace, string(claim.Status.Phase)}
+	for _, item := range s.claims {
+		row := []string{item.Name, item.Namespace, string(item.Status.Phase)}
 		rows = append(rows, row)
 	}
 
