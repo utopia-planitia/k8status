@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,111 +9,83 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrVolumeListIsNil error = errors.New("ErrVolumeListIsNil")
-
-type volumeTableView struct {
-	name      string
-	namespace string
-	phase     string
+type volumesStatus struct {
+	total     int
+	ignored   int
+	healthy   int
+	volumes   []v1.PersistentVolume
+	unhealthy int
 }
 
-func (c volumeTableView) header() []string {
-	return []string{"Volume", "Namespace", "Phase"}
-}
-
-func (c volumeTableView) row() []string {
-	return []string{c.name, c.namespace, c.phase}
-}
-
-func PrintVolumeStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	pvs, err := client.clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+func NewVolumesStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	volumesList, err := client.clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printVolumeStatus(header, details, pvs, verbose, colored)
+	volumes := volumesList.Items
+
+	status := &volumesStatus{
+		volumes: []v1.PersistentVolume{},
+	}
+	status.add(volumes)
+
+	return status, nil
 }
 
-func printVolumeStatus(header io.Writer, details io.Writer, pvs *v1.PersistentVolumeList, verbose, colored bool) (int, error) {
-	if pvs == nil {
-		return 0, ErrVolumeListIsNil
-	}
-
-	stats := gatherVolumesStats(pvs)
-
-	err := createAndWriteVolumesTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateVolumesStatus(stats)
-
-	return exitCode, nil
+func (s *volumesStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d volumes are bound or available (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluateVolumesStatus(stats *volumeStats) (exitCode int) {
-	exitCode = 0
+func (s *volumesStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
 
-	if stats.foundUnhealthyVolume {
+func (s *volumesStatus) ExitCode() int {
+	if s.unhealthy > 0 {
 		return 42
 	}
 
-	return exitCode
+	return 0
 }
 
-func createAndWriteVolumesTableInfo(header io.Writer, details io.Writer, stats *volumeStats, verbose, colored bool) error {
-	table, err := CreateTable(details, volumeTableView{}.header(), colored)
-	if err != nil {
-		return err
-	}
+func (s *volumesStatus) toTable() Table {
+	header := []string{"Volume", "Namespace", "Phase"}
 
-	fmt.Fprintf(header, "%d of %d volumes are bound or available.\n", stats.healthyVolumes, stats.volumesTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
+	rows := [][]string{}
+	for _, item := range s.volumes {
+		row := []string{
+			item.Name,
+			item.Namespace,
+			string(item.Status.Phase),
 		}
+		rows = append(rows, row)
 	}
 
-	return nil
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
 }
 
-type volumeStats struct {
-	volumesTotal         int
-	healthyVolumes       int
-	tableData            [][]string
-	foundUnhealthyVolume bool
-}
+func (s *volumesStatus) add(pvcs []v1.PersistentVolume) {
+	s.total += len(pvcs)
 
-func gatherVolumesStats(pvs *v1.PersistentVolumeList) *volumeStats {
-	foundUnhealthyVolume := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range pvs.Items {
+	for _, item := range pvcs {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
+		}
 
 		if volumeIsHealthy(item) {
-			healthy++
-		} else {
-			tv := volumeTableView{item.Name, item.Namespace, string(item.Status.Phase)}
-			tableData = append(tableData, tv.row())
-
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
-			foundUnhealthyVolume = true
+			s.healthy++
+			continue
 		}
-	}
 
-	stats := volumeStats{
-		volumesTotal:         len(pvs.Items),
-		healthyVolumes:       healthy,
-		tableData:            tableData,
-		foundUnhealthyVolume: foundUnhealthyVolume,
+		s.volumes = append(s.volumes, item)
+		s.unhealthy++
 	}
-
-	return &stats
 }
 
 func volumeIsHealthy(item v1.PersistentVolume) bool {

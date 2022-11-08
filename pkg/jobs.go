@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,100 +9,53 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrJobListIsNil error = errors.New("ErrJobListIsNil")
-
-type jobTableView struct {
-	name        string
-	namespace   string
-	active      string
-	completions string
-	succeeded   string
-	failed      string
+type jobsStatus struct {
+	total     int
+	ignored   int
+	healthy   int
+	jobs      []v1.Job
+	unhealthy int
 }
 
-func (c jobTableView) header() []string {
-	return []string{"Job", "Namespace", "Active", "Completions", "Succeeded", "Failed"}
-}
-
-func (c jobTableView) row() []string {
-	return []string{c.name, c.namespace, string(c.active), string(c.completions), string(c.succeeded), string(c.failed)}
-}
-
-func PrintJobStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	jobs, err := client.clientset.BatchV1().Jobs("").List(ctx, metav1.ListOptions{})
+func NewJobsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	jobsList, err := client.clientset.BatchV1().Jobs("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printJobStatus(header, details, jobs, verbose, colored)
+	jobs := jobsList.Items
+
+	status := &jobsStatus{
+		jobs: []v1.Job{},
+	}
+	status.add(jobs)
+
+	return status, nil
 }
 
-func printJobStatus(header io.Writer, details io.Writer, jobs *v1.JobList, verbose, colored bool) (int, error) {
-	if jobs == nil {
-		return 0, ErrJobListIsNil
-	}
-
-	stats := gatherJobsStats(jobs)
-
-	err := createAndWriteJobsTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateJobsStatus(stats)
-
-	return exitCode, nil
+func (s *jobsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d jobs are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluateJobsStatus(stats *jobStats) (exitCode int) {
-	exitCode = 0
-
-	if stats.foundUnhealthyJob {
-		return 49
-	}
-
-	return exitCode
+func (s *jobsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
 }
 
-func createAndWriteJobsTableInfo(header io.Writer, details io.Writer, stats *jobStats, verbose, colored bool) error {
-
-	table, err := CreateTable(details, jobTableView{}.header(), colored)
-	if err != nil {
-		return err
+func (s *jobsStatus) ExitCode() int {
+	if s.unhealthy > 0 {
+		return 51
 	}
 
-	fmt.Fprintf(header, "%d of %d jobs are healthy.\n", stats.healthyJobs, stats.jobsTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
-		}
-	}
-
-	return nil
+	return 0
 }
 
-type jobStats struct {
-	jobsTotal         int
-	healthyJobs       int
-	tableData         [][]string
-	foundUnhealthyJob bool
-}
+func (s *jobsStatus) toTable() Table {
+	header := []string{"Job", "Namespace", "Active", "Completions", "Succeeded", "Failed"}
 
-func gatherJobsStats(jobs *v1.JobList) *jobStats {
-	foundUnhealthyJob := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range jobs.Items {
-
-		if jobIsHealthy(item) {
-			healthy++
-			continue
-		}
-
-		tv := jobTableView{
+	rows := [][]string{}
+	for _, item := range s.jobs {
+		row := []string{
 			item.Name,
 			item.Namespace,
 			fmt.Sprintf("%d", item.Status.Active),
@@ -111,21 +63,32 @@ func gatherJobsStats(jobs *v1.JobList) *jobStats {
 			fmt.Sprintf("%d", item.Status.Succeeded),
 			fmt.Sprintf("%d", item.Status.Failed),
 		}
-		tableData = append(tableData, tv.row())
+		rows = append(rows, row)
+	}
 
-		if !isCiOrLabNamespace(item.Namespace) {
-			foundUnhealthyJob = true
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
+}
+
+func (s *jobsStatus) add(jobs []v1.Job) {
+	s.total += len(jobs)
+
+	for _, item := range jobs {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
 		}
-	}
 
-	stats := jobStats{
-		jobsTotal:         len(jobs.Items),
-		healthyJobs:       healthy,
-		tableData:         tableData,
-		foundUnhealthyJob: foundUnhealthyJob,
-	}
+		if jobIsHealthy(item) {
+			s.healthy++
+			continue
+		}
 
-	return &stats
+		s.jobs = append(s.jobs, item)
+		s.unhealthy++
+	}
 }
 
 func jobIsHealthy(item v1.Job) bool {

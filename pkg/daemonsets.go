@@ -17,7 +17,7 @@ type daemonsetsStatus struct {
 	unhealthy  int
 }
 
-func NewdaemonsetsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+func NewDaemonsetsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
 	daemonsetsList, err := client.clientset.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

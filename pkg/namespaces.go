@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -11,108 +10,82 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrNamespaceListIsNil error = errors.New("ErrNamespaceListIsNil")
-
-type namespaceTableView struct {
-	name  string
-	phase string
+type namespacesStatus struct {
+	total      int
+	ignored    int
+	healthy    int
+	namespaces []v1.Namespace
+	unhealthy  int
 }
 
-func (c namespaceTableView) header() []string {
-	return []string{"Namespace", "Phase"}
-}
-
-func (c namespaceTableView) row() []string {
-	return []string{c.name, c.phase}
-}
-
-func PrintNamespaceStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	namespaces, err := client.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+func NewNamespacesStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	namespacesList, err := client.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printNamespaceStatus(header, details, namespaces, verbose, colored)
+	namespaces := namespacesList.Items
+
+	status := &namespacesStatus{
+		namespaces: []v1.Namespace{},
+	}
+	status.add(namespaces)
+
+	return status, nil
 }
 
-func printNamespaceStatus(header io.Writer, details io.Writer, namespaces *v1.NamespaceList, verbose, colored bool) (int, error) {
-	if namespaces == nil {
-		return 0, ErrNamespaceListIsNil
-	}
-
-	stats := gatherNamespacesStats(namespaces)
-
-	err := createAndWriteNamespacesTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateNamespacesStatus(stats)
-
-	return exitCode, nil
+func (s *namespacesStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d namespaces are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluateNamespacesStatus(stats *namespacesStats) (exitCode int) {
-	exitCode = 0
+func (s *namespacesStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
 
-	if stats.foundUnhealthyNamespace {
+func (s *namespacesStatus) ExitCode() int {
+	if s.unhealthy > 0 {
 		return 43
 	}
 
-	return exitCode
+	return 0
 }
 
-func createAndWriteNamespacesTableInfo(header io.Writer, details io.Writer, stats *namespacesStats, verbose, colored bool) error {
+func (s *namespacesStatus) toTable() Table {
+	header := []string{"Namespace", "Phase"}
 
-	table, err := CreateTable(details, namespaceTableView{}.header(), colored)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(header, "%d of %d namespaces are healthy.\n", stats.healthyNamespaces, stats.namespacesTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
+	rows := [][]string{}
+	for _, item := range s.namespaces {
+		row := []string{
+			item.Name,
+			string(item.Status.Phase),
 		}
+		rows = append(rows, row)
 	}
 
-	return nil
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
 }
 
-type namespacesStats struct {
-	namespacesTotal         int
-	healthyNamespaces       int
-	tableData               [][]string
-	foundUnhealthyNamespace bool
-}
+func (s *namespacesStatus) add(namespaces []v1.Namespace) {
+	s.total += len(namespaces)
 
-func gatherNamespacesStats(namespaces *v1.NamespaceList) *namespacesStats {
-	foundUnhealthyNamespace := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range namespaces.Items {
-		if namespaceIsHealthy(item) {
-			healthy++
+	for _, item := range namespaces {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 			continue
 		}
 
-		tv := namespaceTableView{item.Name, string(item.Status.Phase)}
-		tableData = append(tableData, tv.row())
+		if namespaceIsHealthy(item) {
+			s.healthy++
+			continue
+		}
 
-		foundUnhealthyNamespace = true
+		s.namespaces = append(s.namespaces, item)
+		s.unhealthy++
 	}
-
-	stats := namespacesStats{
-		namespacesTotal:         len(namespaces.Items),
-		healthyNamespaces:       healthy,
-		tableData:               tableData,
-		foundUnhealthyNamespace: foundUnhealthyNamespace,
-	}
-
-	return &stats
 }
 
 func namespaceIsHealthy(item v1.Namespace) bool {

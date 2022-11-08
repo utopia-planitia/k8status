@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,121 +9,86 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrStatefulsetListIsNil error = errors.New("ErrStatefulsetListIsNil")
-
-type statefulsetTableView struct {
-	name      string
-	namespace string
-	replicas  string
-	ready     string
-	current   string
-	updated   string
+type statefulsetsStatus struct {
+	total        int
+	ignored      int
+	healthy      int
+	statefulsets []appsv1.StatefulSet
+	unhealthy    int
 }
 
-func (c statefulsetTableView) header() []string {
-	return []string{"Statefulset", "Namespace", "Replicas", "Ready", "Current", "Updated"}
-}
-
-func (c statefulsetTableView) row() []string {
-	return []string{c.name, c.namespace, c.replicas, c.ready, c.current, c.updated}
-}
-
-func PrintStatefulsetStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	statefulsets, err := client.clientset.AppsV1().StatefulSets("").List(ctx, metav1.ListOptions{})
-	_ = statefulsets
+func NewStatefulsetsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	statefulsetsList, err := client.clientset.AppsV1().StatefulSets("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printStatefulsetStatus(header, details, statefulsets, verbose, colored)
+	statefulsets := statefulsetsList.Items
+
+	status := &statefulsetsStatus{
+		statefulsets: []appsv1.StatefulSet{},
+	}
+	status.add(statefulsets)
+
+	return status, nil
 }
 
-func printStatefulsetStatus(header io.Writer, details io.Writer, statefulsets *appsv1.StatefulSetList, verbose, colored bool) (int, error) {
-	if statefulsets == nil {
-		return 0, ErrStatefulsetListIsNil
-	}
-
-	stats := gatherStatefulsetsStats(statefulsets)
-
-	err := createAndWriteStatefulsetsTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateStatefulsetsStatus(stats)
-
-	return exitCode, nil
+func (s *statefulsetsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d statefulsets are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluateStatefulsetsStatus(stats *statefulsetStats) (exitCode int) {
-	exitCode = 0
+func (s *statefulsetsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
 
-	if stats.foundUnhealthyStatefulset {
+func (s *statefulsetsStatus) ExitCode() int {
+	if s.unhealthy > 0 {
 		return 50
 	}
 
-	return exitCode
+	return 0
 }
 
-func createAndWriteStatefulsetsTableInfo(header io.Writer, details io.Writer, stats *statefulsetStats, verbose, colored bool) error {
-	table, err := CreateTable(details, statefulsetTableView{}.header(), colored)
-	if err != nil {
-		return err
-	}
+func (s *statefulsetsStatus) toTable() Table {
+	header := []string{"Statefulset", "Namespace", "Replicas", "Ready", "Current", "Updated"}
 
-	fmt.Fprintf(header, "%d of %d statefulsets are healthy.\n", stats.healthySets, stats.setsTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
+	rows := [][]string{}
+	for _, item := range s.statefulsets {
+		row := []string{
+			item.Name,
+			item.Namespace,
+			fmt.Sprintf("%d", item.Status.Replicas),
+			fmt.Sprintf("%d", item.Status.ReadyReplicas),
+			fmt.Sprintf("%d", item.Status.CurrentReplicas),
+			fmt.Sprintf("%d", item.Status.UpdatedReplicas),
 		}
+		rows = append(rows, row)
 	}
 
-	return nil
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
 }
 
-type statefulsetStats struct {
-	setsTotal                 int
-	healthySets               int
-	tableData                 [][]string
-	foundUnhealthyStatefulset bool
-}
+func (s *statefulsetsStatus) add(statefulsets []appsv1.StatefulSet) {
+	s.total += len(statefulsets)
 
-func gatherStatefulsetsStats(statefulsets *appsv1.StatefulSetList) *statefulsetStats {
-	foundUnhealthyStatefulset := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range statefulsets.Items {
+	for _, item := range statefulsets {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
+		}
 
 		if statefulsetIsHealthy(item) {
-			healthy++
-		} else {
-			tv := statefulsetTableView{
-				item.Name, item.Namespace,
-				fmt.Sprintf("%d", item.Status.Replicas),
-				fmt.Sprintf("%d", item.Status.ReadyReplicas),
-				fmt.Sprintf("%d", item.Status.CurrentReplicas),
-				fmt.Sprintf("%d", item.Status.UpdatedReplicas),
-			}
-			tableData = append(tableData, tv.row())
-
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
-			foundUnhealthyStatefulset = true
+			s.healthy++
+			continue
 		}
-	}
 
-	stats := statefulsetStats{
-		setsTotal:                 len(statefulsets.Items),
-		healthySets:               healthy,
-		tableData:                 tableData,
-		foundUnhealthyStatefulset: foundUnhealthyStatefulset,
+		s.statefulsets = append(s.statefulsets, item)
+		s.unhealthy++
 	}
-
-	return &stats
 }
 
 func statefulsetIsHealthy(item appsv1.StatefulSet) bool {

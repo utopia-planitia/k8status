@@ -34,6 +34,7 @@ func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (statu
 }
 
 func (s *volumeClaimsStatus) Summary(w io.Writer, verbose bool) error {
+	// TODO: only print ignored when items are ignored
 	_, err := fmt.Fprintf(w, "%d of %d volume claims are bound (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }

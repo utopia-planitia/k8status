@@ -37,15 +37,15 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bo
 		NewNodeStatus,
 		NewCassandraStatus,
 		// PrintRookCephStatus,
-		// PrintVolumeStatus,
-		// PrintNamespaceStatus,
+		NewVolumesStatus,
+		NewNamespacesStatus,
 		NewVolumeClaimsStatus,
-		// PrintPodStatus,
-		// PrintJobStatus,
-		// PrintDeploymentStatus,
-		// PrintStatefulsetStatus,
-		// PrintDaemonsetStatus,
-		// PrintCronjobStatus,
+		NewPodsStatus,
+		NewJobsStatus,
+		NewDeploymentsStatus,
+		NewStatefulsetsStatus,
+		NewDaemonsetsStatus,
+		NewCronjobsStatus,
 	}
 
 	futures := futures{}

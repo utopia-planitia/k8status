@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,100 +9,53 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrDeploymentListIsNil error = errors.New("ErrDeploymentListIsNil")
-
-type deploymentTableView struct {
-	name      string
-	namespace string
-	replicas  string
-	ready     string
-	updated   string
-	available string
+type deploymentsStatus struct {
+	total       int
+	ignored     int
+	healthy     int
+	deployments []appsv1.Deployment
+	unhealthy   int
 }
 
-func (c deploymentTableView) header() []string {
-	return []string{"Deployment", "Namespace", "Replicas", "Available", "Up-to-date", "Ready"}
-}
-
-func (c deploymentTableView) row() []string {
-	return []string{c.name, c.namespace, c.replicas, c.available, c.updated, c.ready}
-}
-
-func PrintDeploymentStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	deployments, err := client.clientset.AppsV1().Deployments("").List(ctx, metav1.ListOptions{})
-	_ = deployments
+func NewDeploymentsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	deploymentsList, err := client.clientset.AppsV1().Deployments("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printDeploymentStatus(header, details, deployments, verbose, colored)
+	deployments := deploymentsList.Items
+
+	status := &deploymentsStatus{
+		deployments: []appsv1.Deployment{},
+	}
+	status.add(deployments)
+
+	return status, nil
 }
 
-func printDeploymentStatus(header io.Writer, details io.Writer, deployments *appsv1.DeploymentList, verbose, colored bool) (int, error) {
-	if deployments == nil {
-		return 0, ErrDeploymentListIsNil
-	}
-
-	stats := gatherDeploymentsStats(deployments)
-
-	err := createAndWriteDeploymentsTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluateDeploymentsStatus(stats)
-
-	return exitCode, nil
+func (s *deploymentsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d deployments are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluateDeploymentsStatus(stats *deploymentStats) (exitCode int) {
-	exitCode = 0
+func (s *deploymentsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
 
-	if stats.foundUnhealthyDeployment {
+func (s *deploymentsStatus) ExitCode() int {
+	if s.unhealthy > 0 {
 		return 48
 	}
 
-	return exitCode
+	return 0
 }
 
-func createAndWriteDeploymentsTableInfo(header io.Writer, details io.Writer, stats *deploymentStats, verbose, colored bool) error {
+func (s *deploymentsStatus) toTable() Table {
+	header := []string{"Deployment", "Namespace", "Replicas", "Available", "Up-to-date", "Ready"}
 
-	table, err := CreateTable(details, deploymentTableView{}.header(), colored)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(header, "%d of %d deployments are healthy.\n", stats.healthyDeployments, stats.deploymentsTotal)
-
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
-		}
-	}
-
-	return nil
-}
-
-type deploymentStats struct {
-	deploymentsTotal         int
-	healthyDeployments       int
-	tableData                [][]string
-	foundUnhealthyDeployment bool
-}
-
-func gatherDeploymentsStats(deployments *appsv1.DeploymentList) *deploymentStats {
-	foundUnhealthyDeployment := false
-
-	healthy := 0
-	tableData := [][]string{}
-
-	for _, item := range deployments.Items {
-		if deploymentIsHealthy(item) {
-			healthy++
-			continue
-		}
-
-		tv := deploymentTableView{
+	rows := [][]string{}
+	for _, item := range s.deployments {
+		row := []string{
 			item.Name,
 			item.Namespace,
 			fmt.Sprintf("%d", item.Status.Replicas),
@@ -111,21 +63,32 @@ func gatherDeploymentsStats(deployments *appsv1.DeploymentList) *deploymentStats
 			fmt.Sprintf("%d", item.Status.UpdatedReplicas),
 			fmt.Sprintf("%d", item.Status.ReadyReplicas),
 		}
-		tableData = append(tableData, tv.row())
+		rows = append(rows, row)
+	}
 
-		if !isCiOrLabNamespace(item.Namespace) {
-			foundUnhealthyDeployment = true
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
+}
+
+func (s *deploymentsStatus) add(deployments []appsv1.Deployment) {
+	s.total += len(deployments)
+
+	for _, item := range deployments {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
 		}
-	}
 
-	stats := deploymentStats{
-		deploymentsTotal:         len(deployments.Items),
-		healthyDeployments:       healthy,
-		tableData:                tableData,
-		foundUnhealthyDeployment: foundUnhealthyDeployment,
-	}
+		if deploymentIsHealthy(item) {
+			s.healthy++
+			continue
+		}
 
-	return &stats
+		s.deployments = append(s.deployments, item)
+		s.unhealthy++
+	}
 }
 
 func deploymentIsHealthy(item appsv1.Deployment) bool {

@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,132 +9,90 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ErrPodListIsNil error = errors.New("ErrPodListIsNil")
-
-type podTableView struct {
-	name      string
-	namespace string
-	phase     string
-	ready     string
-	expected  string
+type podsStatus struct {
+	total     int
+	ignored   int
+	healthy   int
+	pods      []v1.Pod
+	unhealthy int
 }
 
-func (c podTableView) header() []string {
-	return []string{"Pod", "Namespace", "Phase", "Containers Ready", "Containers Expected"}
-}
-
-func (c podTableView) row() []string {
-	return []string{c.name, c.namespace, c.phase, c.ready, c.expected}
-}
-
-func PrintPodStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose, colored bool) (int, error) {
-	pods, err := client.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+func NewPodsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	podsList, err := client.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return printPodStatus(header, details, pods, verbose, colored)
+	pods := podsList.Items
+
+	status := &podsStatus{
+		pods: []v1.Pod{},
+	}
+	status.add(pods)
+
+	return status, nil
 }
 
-func printPodStatus(header io.Writer, details io.Writer, pods *v1.PodList, verbose, colored bool) (int, error) {
-	if pods == nil {
-		return 0, ErrPodListIsNil
-	}
-
-	stats := gatherPodsStats(pods)
-
-	err := createAndWritePodsTableInfo(header, details, stats, verbose, colored)
-	if err != nil {
-		return 0, err
-	}
-
-	exitCode := evaluatePodsStatus(stats)
-
-	return exitCode, nil
+func (s *podsStatus) Summary(w io.Writer, verbose bool) error {
+	_, err := fmt.Fprintf(w, "%d of %d pods are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return err
 }
 
-func evaluatePodsStatus(stats *podsStats) (exitCode int) {
-	exitCode = 0
-
-	if stats.foundUnhealthyPod {
-		return 45
-	}
-
-	return exitCode
+func (s *podsStatus) Details(w io.Writer, verbose, colored bool) error {
+	return s.toTable().Fprint(w, colored)
 }
 
-func createAndWritePodsTableInfo(header io.Writer, details io.Writer, stats *podsStats, verbose, colored bool) error {
-
-	table, err := CreateTable(details, podTableView{}.header(), colored)
-	if err != nil {
-		return err
+func (s *podsStatus) ExitCode() int {
+	if s.unhealthy > 0 {
+		return 51
 	}
 
-	fmt.Fprintf(header, "%d of %d pods are healthy (%d ignored).\n", stats.healthyPods, stats.podsTotal, stats.ignoredPods)
+	return 0
+}
 
-	if verbose {
-		if len(stats.tableData) != 0 {
-			RenderTable(table, stats.tableData)
+func (s *podsStatus) toTable() Table {
+	header := []string{"Pod", "Namespace", "Phase", "Containers Ready", "Containers Expected"}
+
+	rows := [][]string{}
+	for _, item := range s.pods {
+		row := []string{
+			item.Name,
+			item.Namespace,
+			string(item.Status.Phase),
+			fmt.Sprintf("%d", getReadyContainers(item)),
+			fmt.Sprintf("%d", len(item.Spec.Containers)),
 		}
+		rows = append(rows, row)
 	}
 
-	return nil
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
 }
 
-type podsStats struct {
-	podsTotal         int
-	ignoredPods       int
-	healthyPods       int
-	tableData         [][]string
-	foundUnhealthyPod bool
-}
+func (s *podsStatus) add(pvcs []v1.Pod) {
+	s.total += len(pvcs)
 
-func gatherPodsStats(pods *v1.PodList) *podsStats {
-	foundUnhealthyPod := false
-
-	healthy := 0
-	ignored := 0
-	total := 0
-	tableData := [][]string{}
-
-	for _, item := range pods.Items {
+	for _, item := range pvcs {
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
+			continue
+		}
 
 		if item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
-			ignored++
-			continue
-		}
-		total++
-
-		if !podIsHealthy(item) {
-			tv := podTableView{
-				item.Name,
-				item.Namespace,
-				string(item.Status.Phase),
-				fmt.Sprintf("%d", getReadyContainers(item)),
-				fmt.Sprintf("%d", len(item.Spec.Containers)),
-			}
-			tableData = append(tableData, tv.row())
-
-			if isCiOrLabNamespace(item.Namespace) {
-				continue
-			}
-			foundUnhealthyPod = true
-
+			s.ignored++
 			continue
 		}
 
-		healthy++
-	}
+		if podIsHealthy(item) {
+			s.healthy++
+			continue
+		}
 
-	stats := podsStats{
-		podsTotal:         total,
-		ignoredPods:       ignored,
-		healthyPods:       healthy,
-		tableData:         tableData,
-		foundUnhealthyPod: foundUnhealthyPod,
+		s.pods = append(s.pods, item)
+		s.unhealthy++
 	}
-
-	return &stats
 }
 
 func podIsHealthy(item v1.Pod) bool {
