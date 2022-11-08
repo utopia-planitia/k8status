@@ -1,7 +1,3 @@
-# read env vars
-include .env
-export
-
 .PHONY: lint
 lint:
 	docker run \
