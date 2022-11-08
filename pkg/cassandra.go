@@ -46,12 +46,8 @@ func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, 
 	return status, nil
 }
 
-func (s *cassandraStatus) Summary(w io.Writer, verbose bool) error {
+func (s *cassandraStatus) Summary(w io.Writer) error {
 	if !s.found {
-		if !verbose {
-			return nil
-		}
-
 		_, err := fmt.Fprintf(w, "cassandra was not found.\n")
 		return err
 	}
@@ -60,7 +56,7 @@ func (s *cassandraStatus) Summary(w io.Writer, verbose bool) error {
 	return err
 }
 
-func (s *cassandraStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *cassandraStatus) Details(w io.Writer, colored bool) error {
 	if s.unhealthyCount == 0 {
 		return nil
 	}

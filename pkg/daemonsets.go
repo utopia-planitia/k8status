@@ -33,12 +33,12 @@ func NewDaemonsetsStatus(ctx context.Context, client *KubernetesClient) (status,
 	return status, nil
 }
 
-func (s *daemonsetsStatus) Summary(w io.Writer, verbose bool) error {
+func (s *daemonsetsStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d daemonsets are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }
 
-func (s *daemonsetsStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *daemonsetsStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

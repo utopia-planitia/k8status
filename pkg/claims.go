@@ -33,13 +33,13 @@ func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (statu
 	return status, nil
 }
 
-func (s *volumeClaimsStatus) Summary(w io.Writer, verbose bool) error {
+func (s *volumeClaimsStatus) Summary(w io.Writer) error {
 	// TODO: only print ignored when items are ignored
 	_, err := fmt.Fprintf(w, "%d of %d volume claims are bound (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }
 
-func (s *volumeClaimsStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *volumeClaimsStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

@@ -33,12 +33,12 @@ func NewVolumesStatus(ctx context.Context, client *KubernetesClient) (status, er
 	return status, nil
 }
 
-func (s *volumesStatus) Summary(w io.Writer, verbose bool) error {
+func (s *volumesStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d volumes are bound or available (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }
 
-func (s *volumesStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *volumesStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

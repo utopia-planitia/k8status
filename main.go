@@ -11,14 +11,9 @@ import (
 )
 
 var (
-	commit  string
-	version string
-	date    string
-	verbose = &cli.BoolFlag{
-		Name:  "verbose",
-		Value: false,
-		Usage: "Print verbose outputs.",
-	}
+	commit   string
+	version  string
+	date     string
 	noColors = &cli.BoolFlag{
 		Name:  "noColors",
 		Value: false,
@@ -27,7 +22,7 @@ var (
 	kubeConfigFile = &cli.StringFlag{
 		Name:    "kubeconfig",
 		Value:   "", // overwritten by init function
-		Usage:   "Print verbose outputs.",
+		Usage:   "Path to kube config file.",
 		EnvVars: []string{"KUBECONFIG"},
 	}
 	app = &cli.App{
@@ -35,7 +30,6 @@ var (
 		Usage:  "A quick overview about the health of a Kubernets cluster and its workloads.",
 		Action: run,
 		Flags: []cli.Flag{
-			verbose,
 			kubeConfigFile,
 			noColors,
 		},
@@ -71,7 +65,6 @@ func main() {
 }
 
 func run(c *cli.Context) error {
-	verbose := c.Bool(verbose.Name)
 	noColors := c.Bool(noColors.Name)
 	colored := !noColors
 	kubeConfigFile := c.String(kubeConfigFile.Name)
@@ -82,7 +75,7 @@ func run(c *cli.Context) error {
 		return err
 	}
 
-	return k8status.Run(ctx, k8sClient, verbose, colored)
+	return k8status.Run(ctx, k8sClient, colored)
 }
 
 func printVersion(c *cli.Context) error {

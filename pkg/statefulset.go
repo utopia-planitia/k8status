@@ -33,12 +33,12 @@ func NewStatefulsetsStatus(ctx context.Context, client *KubernetesClient) (statu
 	return status, nil
 }
 
-func (s *statefulsetsStatus) Summary(w io.Writer, verbose bool) error {
+func (s *statefulsetsStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d statefulsets are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }
 
-func (s *statefulsetsStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *statefulsetsStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

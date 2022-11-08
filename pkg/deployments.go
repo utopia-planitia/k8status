@@ -33,12 +33,12 @@ func NewDeploymentsStatus(ctx context.Context, client *KubernetesClient) (status
 	return status, nil
 }
 
-func (s *deploymentsStatus) Summary(w io.Writer, verbose bool) error {
+func (s *deploymentsStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d deployments are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
 	return err
 }
 
-func (s *deploymentsStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *deploymentsStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

@@ -36,12 +36,12 @@ func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error
 	return status, nil
 }
 
-func (s nodesStatus) Summary(w io.Writer, verbose bool) error {
+func (s nodesStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d Nodes are up and healthy.\n", s.healthyCount, s.total)
 	return err
 }
 
-func (s nodesStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s nodesStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

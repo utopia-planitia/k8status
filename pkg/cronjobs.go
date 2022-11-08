@@ -37,12 +37,12 @@ func NewCronjobsStatus(ctx context.Context, client *KubernetesClient) (status, e
 	return status, nil
 }
 
-func (s *cronjobsStatus) Summary(w io.Writer, verbose bool) error {
+func (s *cronjobsStatus) Summary(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%d of %d cronjobs are healthy (%d ignored).\n", s.total, s.healthy, s.ignored)
 	return err
 }
 
-func (s *cronjobsStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *cronjobsStatus) Details(w io.Writer, colored bool) error {
 	return s.toTable().Fprint(w, colored)
 }
 

@@ -14,8 +14,8 @@ import (
 type newStatus func(ctx context.Context, client *KubernetesClient) (status, error)
 
 type status interface {
-	Summary(w io.Writer, verbose bool) error
-	Details(w io.Writer, verbose, colored bool) error
+	Summary(w io.Writer) error
+	Details(w io.Writer, colored bool) error
 	ExitCode() int
 }
 
@@ -30,7 +30,7 @@ type futures []<-chan result
 
 type results []result
 
-func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bool) error {
+func Run(ctx context.Context, client *KubernetesClient, colored bool) error {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 
 	checks := []newStatus{
@@ -67,7 +67,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bo
 			result.exitCode = check.ExitCode()
 
 			result.summary = &bytes.Buffer{}
-			err = check.Summary(result.summary, verbose)
+			err = check.Summary(result.summary)
 			if err != nil {
 				result.err = err
 				future <- result
@@ -75,7 +75,7 @@ func Run(ctx context.Context, client *KubernetesClient, verbose bool, colored bo
 			}
 
 			result.details = &bytes.Buffer{}
-			err = check.Details(result.details, verbose, colored)
+			err = check.Details(result.details, colored)
 			if err != nil {
 				result.err = err
 				future <- result

@@ -95,12 +95,8 @@ func getRookCephHealth(ctx context.Context, client *KubernetesClient) (CephHealt
 	return cephStatus.Health, nil
 }
 
-func (s *rookCephStatus) Summary(w io.Writer, verbose bool) error {
+func (s *rookCephStatus) Summary(w io.Writer) error {
 	if !s.found {
-		if !verbose {
-			return nil
-		}
-
 		_, err := fmt.Fprintf(w, "rook-ceph was not found.\n")
 		return err
 	}
@@ -114,7 +110,7 @@ func (s *rookCephStatus) Summary(w io.Writer, verbose bool) error {
 	return err
 }
 
-func (s *rookCephStatus) Details(w io.Writer, verbose, colored bool) error {
+func (s *rookCephStatus) Details(w io.Writer, colored bool) error {
 	for _, check := range s.health.Checks {
 		_, err := fmt.Fprintln(w, check.Summary.Message)
 		if err != nil {
