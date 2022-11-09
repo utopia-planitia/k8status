@@ -11,10 +11,10 @@ import (
 )
 
 type nodesStatus struct {
-	total          int
-	healthyCount   int
-	nodes          []v1.Node
-	unhealthyCount int
+	total     int
+	healthy   int
+	nodes     []v1.Node
+	unhealthy int
 }
 
 func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error) {
@@ -25,19 +25,14 @@ func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error
 
 	nodes := nodesList.Items
 
-	status := &nodesStatus{
-		total:          len(nodes),
-		healthyCount:   0,
-		nodes:          []v1.Node{},
-		unhealthyCount: 0,
-	}
+	status := &nodesStatus{}
 	status.add(nodes)
 
 	return status, nil
 }
 
 func (s *nodesStatus) Summary(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "%d of %d Nodes are up and healthy.\n", s.healthyCount, s.total)
+	_, err := fmt.Fprintf(w, "%d of %d nodes are up and healthy.\n", s.healthy, s.total)
 	return err
 }
 
@@ -46,7 +41,7 @@ func (s *nodesStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *nodesStatus) ExitCode() int {
-	if s.unhealthyCount > 0 {
+	if s.unhealthy > 0 {
 		return 43
 	}
 
@@ -75,13 +70,13 @@ func (s *nodesStatus) add(nodes []v1.Node) {
 		isReady, cordoned, _ := getNodeConditions(item)
 
 		if nodeIsHealthy(isReady, cordoned) {
-			s.healthyCount++
+			s.healthy++
 			continue
 		}
 
 		s.nodes = append(s.nodes, item)
 
-		s.unhealthyCount++
+		s.unhealthy++
 	}
 }
 

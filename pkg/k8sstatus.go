@@ -20,42 +20,50 @@ type status interface {
 }
 
 type result struct {
+	name     string
 	summary  io.ReadWriter
 	details  io.ReadWriter
 	exitCode int
 	err      error
 }
 
-type futures []<-chan result
+type futures []<-chan *result
 
-type results []result
+type results []*result
+
+type check struct {
+	name   string
+	status newStatus
+}
 
 func Run(ctx context.Context, client *KubernetesClient, colored bool) error {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 
-	checks := []newStatus{
-		NewNodeStatus,
-		NewCassandraStatus,
-		NewRookCephStatus,
-		NewVolumesStatus,
-		NewNamespacesStatus,
-		NewVolumeClaimsStatus,
-		NewPodsStatus,
-		NewJobsStatus,
-		NewDeploymentsStatus,
-		NewStatefulsetsStatus,
-		NewDaemonsetsStatus,
-		NewCronjobsStatus,
+	checks := []check{
+		{name: "NewNodeStatus", status: NewNodeStatus},
+		{name: "NewCassandraStatus", status: NewCassandraStatus},
+		{name: "NewRookCephStatus", status: NewRookCephStatus},
+		{name: "NewVolumesStatus", status: NewVolumesStatus},
+		{name: "NewVolumeClaimsStatus", status: NewVolumeClaimsStatus},
+		{name: "NewNamespacesStatus", status: NewNamespacesStatus},
+		{name: "NewDaemonsetsStatus", status: NewDaemonsetsStatus},
+		{name: "NewStatefulsetsStatus", status: NewStatefulsetsStatus},
+		{name: "NewDeploymentsStatus", status: NewDeploymentsStatus},
+		{name: "NewCronjobsStatus", status: NewCronjobsStatus},
+		{name: "NewJobsStatus", status: NewJobsStatus},
+		{name: "NewPodsStatus", status: NewPodsStatus},
 	}
 
 	futures := futures{}
 
 	for _, check := range checks {
-		future := make(chan result)
+		future := make(chan *result)
 		futures = append(futures, future)
 
-		go func(future chan result, newCheck newStatus) {
-			result := result{}
+		go func(future chan *result, name string, newCheck newStatus) {
+			result := &result{
+				name: name,
+			}
 
 			check, err := newCheck(ctx, client)
 			if err != nil {
@@ -81,17 +89,22 @@ func Run(ctx context.Context, client *KubernetesClient, colored bool) error {
 				future <- result
 				return
 			}
-		}(future, check)
+
+			future <- result
+		}(future, check.name, check.status)
 	}
 
 	results := futures.Await()
 
-	err := results.Summaries(os.Stdout)
+	err := results.Errors(os.Stdout)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println()
+	err = results.Summaries(os.Stdout)
+	if err != nil {
+		return err
+	}
 
 	err = results.Details(os.Stdout)
 	if err != nil {
@@ -108,7 +121,7 @@ func Run(ctx context.Context, client *KubernetesClient, colored bool) error {
 }
 
 func (futures futures) Await() results {
-	results := []result{}
+	results := results{}
 
 	for _, future := range futures {
 		results = append(results, <-future)
@@ -117,8 +130,27 @@ func (futures futures) Await() results {
 	return results
 }
 
+func (results results) Errors(w io.Writer) error {
+	for _, result := range results {
+		if result.err == nil {
+			continue
+		}
+
+		_, err := fmt.Fprintf(w, "%v error: %v\n", result.name, result.err)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (results results) Summaries(w io.Writer) error {
 	for _, result := range results {
+		if result.summary == nil {
+			continue
+		}
+
 		_, err := io.Copy(w, result.summary)
 		if err != nil {
 			return err
@@ -130,6 +162,10 @@ func (results results) Summaries(w io.Writer) error {
 
 func (results results) Details(w io.Writer) error {
 	for _, result := range results {
+		if result.details == nil {
+			continue
+		}
+
 		_, err := io.Copy(w, result.details)
 		if err != nil {
 			return err

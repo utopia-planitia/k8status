@@ -34,8 +34,7 @@ func NewDeploymentsStatus(ctx context.Context, client *KubernetesClient) (status
 }
 
 func (s *deploymentsStatus) Summary(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "%d of %d deployments are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
-	return err
+	return printSummaryWithIgnored(w, "%d of %d deployments are healthy.\n", s.ignored, s.healthy, s.total)
 }
 
 func (s *deploymentsStatus) Details(w io.Writer, colored bool) error {

@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	v1 "k8s.io/api/core/v1"
@@ -34,8 +33,7 @@ func NewVolumesStatus(ctx context.Context, client *KubernetesClient) (status, er
 }
 
 func (s *volumesStatus) Summary(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "%d of %d volumes are bound or available (%d ignored).\n", s.healthy, s.total, s.ignored)
-	return err
+	return printSummaryWithIgnored(w, "%d of %d volumes are bound or available.\n", s.ignored, s.healthy, s.total)
 }
 
 func (s *volumesStatus) Details(w io.Writer, colored bool) error {

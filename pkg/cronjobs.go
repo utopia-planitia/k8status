@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 
@@ -38,8 +37,7 @@ func NewCronjobsStatus(ctx context.Context, client *KubernetesClient) (status, e
 }
 
 func (s *cronjobsStatus) Summary(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "%d of %d cronjobs are healthy (%d ignored).\n", s.total, s.healthy, s.ignored)
-	return err
+	return printSummaryWithIgnored(w, "%d of %d cronjobs are healthy.\n", s.ignored, s.healthy, s.total)
 }
 
 func (s *cronjobsStatus) Details(w io.Writer, colored bool) error {

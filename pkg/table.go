@@ -12,7 +12,7 @@ type Table struct {
 }
 
 func (t Table) Fprint(w io.Writer, colored bool) error {
-	if len(t.Rows) != 0 {
+	if len(t.Rows) == 0 {
 		return nil
 	}
 

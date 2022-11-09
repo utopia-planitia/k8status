@@ -2,7 +2,6 @@ package k8status
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 
@@ -35,8 +34,7 @@ func NewNamespacesStatus(ctx context.Context, client *KubernetesClient) (status,
 }
 
 func (s *namespacesStatus) Summary(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "%d of %d namespaces are healthy (%d ignored).\n", s.healthy, s.total, s.ignored)
-	return err
+	return printSummaryWithIgnored(w, "%d of %d namespaces are healthy.\n", s.ignored, s.healthy, s.total)
 }
 
 func (s *namespacesStatus) Details(w io.Writer, colored bool) error {

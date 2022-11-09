@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +35,16 @@ func NewVolumeClaimsStatus(ctx context.Context, client *KubernetesClient) (statu
 }
 
 func (s *volumeClaimsStatus) Summary(w io.Writer) error {
-	// TODO: only print ignored when items are ignored
-	_, err := fmt.Fprintf(w, "%d of %d volume claims are bound (%d ignored).\n", s.healthy, s.total, s.ignored)
+	return printSummaryWithIgnored(w, "%d of %d volume claims are bound.\n", s.ignored, s.healthy, s.total)
+}
+
+func printSummaryWithIgnored(w io.Writer, phrase string, ignored int, args ...any) error {
+	if ignored != 0 {
+		phrase = strings.ReplaceAll(phrase, ".\n", " (%d ignored).\n")
+		args = append(args, ignored)
+	}
+
+	_, err := fmt.Fprintf(w, phrase, args...)
 	return err
 }
 
