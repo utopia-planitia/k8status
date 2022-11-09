@@ -6,19 +6,15 @@ import (
 	"os"
 	"path/filepath"
 
+	supportscolor "github.com/jwalton/go-supportscolor"
 	cli "github.com/urfave/cli/v2"
 	k8status "gitlab.com/utopia-planitia/k8status/pkg"
 )
 
 var (
-	commit   string
-	version  string
-	date     string
-	noColors = &cli.BoolFlag{
-		Name:  "noColors",
-		Value: false,
-		Usage: "Set to true to supress coloured output.",
-	}
+	commit         string
+	version        string
+	date           string
 	kubeConfigFile = &cli.StringFlag{
 		Name:    "kubeconfig",
 		Value:   "", // overwritten by init function
@@ -31,7 +27,6 @@ var (
 		Action: run,
 		Flags: []cli.Flag{
 			kubeConfigFile,
-			noColors,
 		},
 		Commands: []*cli.Command{
 			{
@@ -65,10 +60,9 @@ func main() {
 }
 
 func run(c *cli.Context) error {
-	noColors := c.Bool(noColors.Name)
-	colored := !noColors
 	kubeConfigFile := c.String(kubeConfigFile.Name)
 	ctx := c.Context
+	colored := supportscolor.Stdout().SupportsColor
 
 	k8sClient, err := k8status.NewKubernetesClient(kubeConfigFile)
 	if err != nil {
