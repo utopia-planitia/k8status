@@ -6,23 +6,19 @@ import (
 	"os"
 	"path/filepath"
 
+	supportscolor "github.com/jwalton/go-supportscolor"
 	cli "github.com/urfave/cli/v2"
 	k8status "gitlab.com/utopia-planitia/k8status/pkg"
 )
 
 var (
-	commit  string
-	version string
-	date    string
-	verbose = &cli.BoolFlag{
-		Name:  "verbose",
-		Value: false,
-		Usage: "Print verbose outputs.",
-	}
+	commit         string
+	version        string
+	date           string
 	kubeConfigFile = &cli.StringFlag{
 		Name:    "kubeconfig",
 		Value:   "", // overwritten by init function
-		Usage:   "Print verbose outputs.",
+		Usage:   "Path to kube config file.",
 		EnvVars: []string{"KUBECONFIG"},
 	}
 	app = &cli.App{
@@ -30,7 +26,6 @@ var (
 		Usage:  "A quick overview about the health of a Kubernets cluster and its workloads.",
 		Action: run,
 		Flags: []cli.Flag{
-			verbose,
 			kubeConfigFile,
 		},
 		Commands: []*cli.Command{
@@ -65,16 +60,16 @@ func main() {
 }
 
 func run(c *cli.Context) error {
-	verbose := c.Bool(verbose.Name)
 	kubeConfigFile := c.String(kubeConfigFile.Name)
 	ctx := c.Context
+	colored := supportscolor.Stdout().SupportsColor
 
 	k8sClient, err := k8status.NewKubernetesClient(kubeConfigFile)
 	if err != nil {
 		return err
 	}
 
-	return k8status.Run(ctx, k8sClient, verbose)
+	return k8status.Run(ctx, k8sClient, colored)
 }
 
 func printVersion(c *cli.Context) error {

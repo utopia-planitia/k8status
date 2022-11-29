@@ -14,51 +14,104 @@ const (
 	cassandraNamespace = "cassandra"
 )
 
-func PrintCassandraStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
+type cassandraStatus struct {
+	found          bool
+	total          int
+	healthyCount   int
+	unhealthyCount int
+	details        string
+}
 
+func NewCassandraStatus(ctx context.Context, client *KubernetesClient) (status, error) {
 	exists, err := namespaceExists(ctx, client.clientset, cassandraNamespace)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	if !exists {
-		if verbose {
-			fmt.Fprintf(header, "Cassandra was not found.\n")
-		}
-
-		return 0, nil
+	status := &cassandraStatus{
+		found: exists,
 	}
 
-	secret, err := client.clientset.CoreV1().Secrets(cassandraNamespace).Get(ctx, "k8ssandra-superuser", metav1.GetOptions{})
+	if !status.found {
+		return status, nil
+	}
+
+	readyNodes, totalNodes, details, err := getCassandraNodeStatus(ctx, client)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	username := secret.Data["username"]
-	password := secret.Data["password"]
+	status.total = totalNodes
+	status.healthyCount = readyNodes
+	status.unhealthyCount = totalNodes - readyNodes
+	status.details = details
 
-	output := &bytes.Buffer{}
+	return status, nil
+}
+
+func (s *cassandraStatus) Summary(w io.Writer) error {
+	if !s.found {
+		_, err := fmt.Fprintf(w, "cassandra was not found.\n")
+		return err
+	}
+
+	_, err := fmt.Fprintf(w, "%d of %d cassandra nodes are ready.\n", s.healthyCount, s.total)
+	return err
+}
+
+func (s *cassandraStatus) Details(w io.Writer, colored bool) error {
+	if s.unhealthyCount == 0 {
+		return nil
+	}
+
+	_, err := fmt.Fprint(w, s.details)
+	return err
+}
+
+func (s *cassandraStatus) ExitCode() int {
+	if s.unhealthyCount > 0 {
+		return 46
+	}
+
+	return 0
+}
+
+func getCassandraNodeStatus(ctx context.Context, client *KubernetesClient) (int, int, string, error) {
+	username, password, err := getCasssandraCredentials(ctx, client)
+	if err != nil {
+		return 0, 0, "", err
+	}
+
+	outputBytes := &bytes.Buffer{}
+	command := fmt.Sprintf("nodetool -u %s -pw %s --host ::FFFF:127.0.0.1 status | grep --extended-regexp '^[UD][NLJM]\\s+'", username, password)
+
 	err = exec(
 		client,
 		cassandraNamespace,
 		"k8ssandra-dc1-default-sts-0",
 		"cassandra",
-		fmt.Sprintf("nodetool -u %s -pw %s --host ::FFFF:127.0.0.1 status | grep --extended-regexp '^[UD][NLJM]\\s+'", username, password),
-		output,
+		command,
+		outputBytes,
 	)
 	if err != nil {
-		return 0, err
+		return 0, 0, "", err
 	}
 
-	readyNodes := strings.Count(output.String(), "UN")
-	totalNodes := strings.Count(output.String(), "\n")
+	output := outputBytes.String()
+	readyNodes := strings.Count(output, "UN")
+	totalNodes := strings.Count(output, "\n")
 
-	fmt.Fprintf(header, "%d of %d cassandra nodes are ready.\n", readyNodes, totalNodes)
+	return readyNodes, totalNodes, output, nil
+}
 
-	if readyNodes != totalNodes {
-		fmt.Fprint(details, output.String())
-		return 46, nil
+func getCasssandraCredentials(ctx context.Context, client *KubernetesClient) (string, string, error) {
+	secret, err := client.clientset.CoreV1().Secrets(cassandraNamespace).Get(ctx, "k8ssandra-superuser", metav1.GetOptions{})
+	if err != nil {
+		return "", "", err
 	}
 
-	return 0, nil
+	username := secret.Data["username"]
+	password := secret.Data["password"]
+
+	return string(username), string(password), nil
 }

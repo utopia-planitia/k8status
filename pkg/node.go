@@ -4,68 +4,80 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
-	"github.com/fatih/color"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
-func PrintNodeStatus(ctx context.Context, header io.Writer, details io.Writer, client *KubernetesClient, verbose bool) (int, error) {
-	nodelist, err := getNodeList(ctx, client.clientset)
-	if err != nil {
-		return 0, err
-	}
-
-	up := 0
-	count := len(nodelist.Items)
-	exitCode := 0
-
-	for _, node := range nodelist.Items {
-		isReady, cordoned, _ := getNodeConditions(node)
-		if isReady && !cordoned {
-			up += 1
-		}
-	}
-
-	fmt.Fprintf(header, "%d of %d Node are up and healthy.\n", up, count)
-
-	for _, node := range nodelist.Items {
-		ready, cordoned, conditions := getNodeConditions(node)
-
-		if !ready {
-			fmt.Fprintf(details, "%s Node %s is not ready.\n", red("x"), node.Name)
-
-			exitCode = 45
-		}
-
-		if cordoned {
-			fmt.Fprintf(details, "%s Node %s is cordoned.\n", red("x"), node.Name)
-
-			exitCode = 45
-		}
-
-		if len(conditions) != 0 {
-			fmt.Fprintf(details, "%s Node %s has conditions:\n", red("x"), node.Name)
-
-			for _, msg := range conditions {
-				fmt.Fprintln(details, msg)
-			}
-
-			exitCode = 45
-		}
-	}
-
-	return exitCode, nil
+type nodesStatus struct {
+	total     int
+	healthy   int
+	nodes     []v1.Node
+	unhealthy int
 }
 
-func getNodeList(ctx context.Context, clientset *kubernetes.Clientset) (*v1.NodeList, error) {
-	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+func NewNodeStatus(ctx context.Context, client *KubernetesClient) (status, error) {
+	nodesList, err := client.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return &nodesStatus{}, err
 	}
 
-	return nodes, nil
+	nodes := nodesList.Items
+
+	status := &nodesStatus{}
+	status.add(nodes)
+
+	return status, nil
+}
+
+func (s *nodesStatus) Summary(w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%d of %d nodes are up and healthy.\n", s.healthy, s.total)
+	return err
+}
+
+func (s *nodesStatus) Details(w io.Writer, colored bool) error {
+	return s.toTable().Fprint(w, colored)
+}
+
+func (s *nodesStatus) ExitCode() int {
+	if s.unhealthy > 0 {
+		return 43
+	}
+
+	return 0
+}
+
+func (s *nodesStatus) toTable() Table {
+	header := []string{"Node", "Status", "Messages"}
+
+	rows := [][]string{}
+	for _, node := range s.nodes {
+		isReady, cordoned, messages := getNodeConditions(node)
+		row := []string{node.Name, formatStatus(isReady, cordoned), strings.Join(messages, "; ")}
+		rows = append(rows, row)
+	}
+
+	return Table{
+		Header: header,
+		Rows:   rows,
+	}
+}
+func (s *nodesStatus) add(nodes []v1.Node) {
+	s.total += len(nodes)
+
+	for _, item := range nodes {
+		isReady, cordoned, _ := getNodeConditions(item)
+
+		if nodeIsHealthy(isReady, cordoned) {
+			s.healthy++
+			continue
+		}
+
+		s.nodes = append(s.nodes, item)
+
+		s.unhealthy++
+	}
 }
 
 func getNodeConditions(node v1.Node) (bool, bool, []string) {
@@ -88,6 +100,17 @@ func getNodeConditions(node v1.Node) (bool, bool, []string) {
 	return ready, cordoned, messages
 }
 
-func red(format string, a ...interface{}) string {
-	return color.New(color.FgRed).Sprintf(format, a...)
+func formatStatus(isReady bool, cordoned bool) string {
+	statuses := []string{}
+	if isReady {
+		statuses = append(statuses, "Ready")
+	}
+	if cordoned {
+		statuses = append(statuses, "Cordoned")
+	}
+	return strings.Join(statuses, ", ")
+}
+
+func nodeIsHealthy(isReady bool, cordoned bool) bool {
+	return isReady && !cordoned
 }
