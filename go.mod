@@ -1,6 +1,6 @@
 module gitlab.com/utopia-planitia/k8status
 
-go 1.18
+go 1.19
 
 require (
 	github.com/fatih/color v1.13.0
