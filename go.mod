@@ -6,7 +6,7 @@ require (
 	github.com/aptible/supercronic v0.2.1
 	github.com/jwalton/go-supportscolor v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/urfave/cli/v2 v2.23.5
+	github.com/urfave/cli/v2 v2.23.6
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
