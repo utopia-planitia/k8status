@@ -72,7 +72,7 @@ func exec(
 		return err
 	}
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdout: stdout,
 		Stderr: os.Stderr,
 	})
