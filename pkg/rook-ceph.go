@@ -124,6 +124,10 @@ func (s *rookCephStatus) Details(w io.Writer, colored bool) error {
 func (s *rookCephStatus) ExitCode() int {
 	// @TODO: Exit Code 48 ( status.sh, line 115	)
 
+	if !s.found {
+		return 0
+	}
+
 	if s.health.Status != rookCephStatusOk {
 		return 47
 	}

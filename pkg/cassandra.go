@@ -69,6 +69,10 @@ func (s *cassandraStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *cassandraStatus) ExitCode() int {
+	if !s.found {
+		return 0
+	}
+
 	if s.unhealthyCount > 0 {
 		return 46
 	}
