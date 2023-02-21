@@ -68,6 +68,24 @@ func Test_cronjobsStatus_ExitCode(t *testing.T) {
 			want: 0,
 		},
 		{
+			name: "Cronjobs with no LastsuccessfulTime and never scheduled yielding: 0 exit code",
+			cronjobs: []batchv1.CronJob{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test",
+					},
+					Spec: batchv1.CronJobSpec{
+						Suspend: &no,
+					},
+					Status: batchv1.CronJobStatus{
+						LastSuccessfulTime: nil,
+						LastScheduleTime:   nil,
+					},
+				},
+			},
+			want: 0,
+		},
+		{
 			name: "Cronjobs with no LastsuccessfulTime yielding: 52 exit code",
 			cronjobs: []batchv1.CronJob{
 				{
@@ -79,6 +97,7 @@ func Test_cronjobsStatus_ExitCode(t *testing.T) {
 					},
 					Status: batchv1.CronJobStatus{
 						LastSuccessfulTime: nil,
+						LastScheduleTime:   &metav1.Time{},
 					},
 				},
 			},
@@ -97,6 +116,7 @@ func Test_cronjobsStatus_ExitCode(t *testing.T) {
 					},
 					Status: batchv1.CronJobStatus{
 						LastSuccessfulTime: &PassedLastSuccessfulTime,
+						LastScheduleTime:   &metav1.Time{},
 					},
 				},
 			},

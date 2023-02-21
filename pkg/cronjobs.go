@@ -116,6 +116,10 @@ func (s *cronjobsStatus) add(cronjobs []v1.CronJob) {
 }
 
 func cronjobStatus(item batchv1.CronJob) (neverSuccessful, failed100times bool) {
+	if item.Status.LastSuccessfulTime == nil && item.Status.LastScheduleTime == nil {
+		return false, false
+	}
+
 	if item.Status.LastSuccessfulTime == nil {
 		return true, false
 	}
