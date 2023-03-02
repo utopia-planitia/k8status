@@ -50,7 +50,7 @@ func (s *podsStatus) ExitCode() int {
 }
 
 func (s *podsStatus) toTable() Table {
-	header := []string{"Pod", "Namespace", "Phase", "Containers Ready", "Containers Expected"}
+	header := []string{"Pod", "Namespace", "Phase", "Containers Ready", "Containers Expected", "Node"}
 
 	rows := [][]string{}
 	for _, item := range s.pods {
@@ -60,6 +60,7 @@ func (s *podsStatus) toTable() Table {
 			string(item.Status.Phase),
 			fmt.Sprintf("%d", getReadyContainers(item)),
 			fmt.Sprintf("%d", len(item.Spec.Containers)),
+			item.Spec.NodeName,
 		}
 		rows = append(rows, row)
 	}
