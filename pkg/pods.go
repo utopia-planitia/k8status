@@ -50,14 +50,28 @@ func (s *podsStatus) ExitCode() int {
 }
 
 func (s *podsStatus) toTable() Table {
-	header := []string{"Pod", "Namespace", "Phase", "Containers Ready", "Containers Expected", "Node"}
+	header := []string{"Pod", "Namespace", "Phase", "Status", "Containers Ready", "Containers Expected", "Node"}
 
 	rows := [][]string{}
 	for _, item := range s.pods {
+		status := ""
+		containerStatus := []v1.ContainerStatus{}
+		containerStatus = append(containerStatus, item.Status.InitContainerStatuses...)
+		containerStatus = append(containerStatus, item.Status.ContainerStatuses...)
+		containerStatus = append(containerStatus, item.Status.EphemeralContainerStatuses...)
+		for _, s := range containerStatus {
+			if s.State.Waiting != nil {
+				status = s.State.Waiting.Reason
+			}
+			if s.State.Terminated != nil {
+				status = s.State.Terminated.Reason
+			}
+		}
 		row := []string{
 			item.Name,
 			item.Namespace,
 			string(item.Status.Phase),
+			status,
 			fmt.Sprintf("%d", getReadyContainers(item)),
 			fmt.Sprintf("%d", len(item.Spec.Containers)),
 			item.Spec.NodeName,
