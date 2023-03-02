@@ -5,7 +5,6 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
-	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -229,7 +228,7 @@ func Test_cronjobsStatus_ExitCode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			status := cronjobsStatus{
-				cronjobs: []v1.CronJob{},
+				cronjobs: []batchv1.CronJob{},
 			}
 			status.add(tt.cronjobs)
 

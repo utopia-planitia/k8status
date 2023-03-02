@@ -7,7 +7,6 @@ import (
 
 	"github.com/aptible/supercronic/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
-	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -15,7 +14,7 @@ type cronjobsStatus struct {
 	total          int
 	ignored        int
 	healthy        int
-	cronjobs       []v1.CronJob
+	cronjobs       []batchv1.CronJob
 	neverSucessful int
 	failed100times int
 }
@@ -29,7 +28,7 @@ func NewCronjobsStatus(ctx context.Context, client *KubernetesClient) (status, e
 	cronjobs := cronjobsList.Items
 
 	status := &cronjobsStatus{
-		cronjobs: []v1.CronJob{},
+		cronjobs: []batchv1.CronJob{},
 	}
 	status.add(cronjobs)
 
@@ -83,7 +82,7 @@ func (s *cronjobsStatus) toTable() Table {
 	}
 }
 
-func (s *cronjobsStatus) add(cronjobs []v1.CronJob) {
+func (s *cronjobsStatus) add(cronjobs []batchv1.CronJob) {
 	s.total += len(cronjobs)
 
 	for _, item := range cronjobs {
