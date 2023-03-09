@@ -75,14 +75,13 @@ func (s *jobsStatus) add(jobs []v1.Job) {
 	s.total += len(jobs)
 
 	for _, item := range jobs {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if jobIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.jobs = append(s.jobs, item)

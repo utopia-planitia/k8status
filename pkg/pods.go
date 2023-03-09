@@ -89,19 +89,14 @@ func (s *podsStatus) add(pvcs []v1.Pod) {
 	s.total += len(pvcs)
 
 	for _, item := range pvcs {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
-		if item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed {
-			s.ignored++
-			continue
-		}
-
 		if podIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		ignored := isCiOrLabNamespace(item.Namespace) || item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed
+		if ignored {
+			s.ignored++
 		}
 
 		s.pods = append(s.pods, item)

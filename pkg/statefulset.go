@@ -75,14 +75,13 @@ func (s *statefulsetsStatus) add(statefulsets []appsv1.StatefulSet) {
 	s.total += len(statefulsets)
 
 	for _, item := range statefulsets {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if statefulsetIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.statefulsets = append(s.statefulsets, item)

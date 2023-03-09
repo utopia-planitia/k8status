@@ -11,12 +11,11 @@ import (
 )
 
 type cronjobsStatus struct {
-	total          int
-	ignored        int
-	healthy        int
-	cronjobs       []batchv1.CronJob
-	neverSucessful int
-	failed100times int
+	total     int
+	ignored   int
+	healthy   int
+	cronjobs  []batchv1.CronJob
+	unhealthy int
 }
 
 func NewCronjobsStatus(ctx context.Context, client *KubernetesClient) (status, error) {
@@ -44,12 +43,8 @@ func (s *cronjobsStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *cronjobsStatus) ExitCode() int {
-	if s.neverSucessful != 0 {
+	if s.unhealthy > s.ignored {
 		return 52
-	}
-
-	if s.failed100times != 0 {
-		return 53
 	}
 
 	return 0
@@ -86,31 +81,24 @@ func (s *cronjobsStatus) add(cronjobs []batchv1.CronJob) {
 	s.total += len(cronjobs)
 
 	for _, item := range cronjobs {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if *item.Spec.Suspend {
 			s.healthy++
 			continue
 		}
 
 		neverSuccessful, failed100times := cronjobStatus(item)
-		if !neverSuccessful && !failed100times {
+		healthy := !neverSuccessful && !failed100times
+		if healthy {
 			s.healthy++
 			continue
 		}
 
-		if neverSuccessful {
-			s.neverSucessful++
-		}
-
-		if failed100times {
-			s.failed100times++
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.cronjobs = append(s.cronjobs, item)
+		s.unhealthy++
 	}
 }
 

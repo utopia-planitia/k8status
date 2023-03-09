@@ -75,14 +75,13 @@ func (s *deploymentsStatus) add(deployments []appsv1.Deployment) {
 	s.total += len(deployments)
 
 	for _, item := range deployments {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if deploymentIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.deployments = append(s.deployments, item)

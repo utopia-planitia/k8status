@@ -76,14 +76,13 @@ func (s *daemonsetsStatus) add(pvcs []appsv1.DaemonSet) {
 	s.total += len(pvcs)
 
 	for _, item := range pvcs {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if daemonsetIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.daemonSets = append(s.daemonSets, item)

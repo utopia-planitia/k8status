@@ -71,14 +71,13 @@ func (s *namespacesStatus) add(namespaces []v1.Namespace) {
 	s.total += len(namespaces)
 
 	for _, item := range namespaces {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if namespaceIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.namespaces = append(s.namespaces, item)

@@ -53,7 +53,7 @@ func (s *volumeClaimsStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *volumeClaimsStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 43
 	}
 
@@ -79,14 +79,13 @@ func (s *volumeClaimsStatus) add(pvcs []v1.PersistentVolumeClaim) {
 	s.total += len(pvcs)
 
 	for _, item := range pvcs {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if volumeClaimIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.claims = append(s.claims, item)

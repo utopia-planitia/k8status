@@ -71,14 +71,13 @@ func (s *volumesStatus) add(pvcs []v1.PersistentVolume) {
 	s.total += len(pvcs)
 
 	for _, item := range pvcs {
-		if isCiOrLabNamespace(item.Namespace) {
-			s.ignored++
-			continue
-		}
-
 		if volumeIsHealthy(item) {
 			s.healthy++
 			continue
+		}
+
+		if isCiOrLabNamespace(item.Namespace) {
+			s.ignored++
 		}
 
 		s.volumes = append(s.volumes, item)
