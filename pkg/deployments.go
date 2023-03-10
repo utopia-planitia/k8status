@@ -42,7 +42,7 @@ func (s *deploymentsStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *deploymentsStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 48
 	}
 

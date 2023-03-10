@@ -119,7 +119,7 @@ func Test_cronjobsStatus_ExitCode(t *testing.T) {
 					},
 				},
 			},
-			want: 53,
+			want: 52,
 		},
 
 		//succcess cases - exit code 0

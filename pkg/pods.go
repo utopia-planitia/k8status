@@ -42,7 +42,7 @@ func (s *podsStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *podsStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 51
 	}
 
@@ -94,7 +94,7 @@ func (s *podsStatus) add(pvcs []v1.Pod) {
 			continue
 		}
 
-		ignored := isCiOrLabNamespace(item.Namespace) || item.Status.Phase == v1.PodSucceeded || item.Status.Phase == v1.PodFailed
+		ignored := isCiOrLabNamespace(item.Namespace)
 		if ignored {
 			s.ignored++
 		}
@@ -105,7 +105,9 @@ func (s *podsStatus) add(pvcs []v1.Pod) {
 }
 
 func podIsHealthy(item v1.Pod) bool {
-	return len(item.Spec.Containers) == getReadyContainers(item)
+	allReady := len(item.Spec.Containers) == getReadyContainers(item)
+	succeeded := item.Status.Phase == v1.PodSucceeded
+	return allReady || succeeded
 }
 
 func getReadyContainers(item v1.Pod) int {

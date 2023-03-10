@@ -41,7 +41,7 @@ func (s *volumesStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *volumesStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 42
 	}
 

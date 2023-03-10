@@ -42,7 +42,7 @@ func (s *jobsStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *jobsStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 51
 	}
 

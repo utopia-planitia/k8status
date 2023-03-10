@@ -42,7 +42,7 @@ func (s *statefulsetsStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *statefulsetsStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 50
 	}
 

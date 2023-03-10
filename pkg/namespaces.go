@@ -42,7 +42,7 @@ func (s *namespacesStatus) Details(w io.Writer, colored bool) error {
 }
 
 func (s *namespacesStatus) ExitCode() int {
-	if s.unhealthy > 0 {
+	if s.unhealthy > s.ignored {
 		return 43
 	}
 
