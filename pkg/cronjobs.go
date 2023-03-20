@@ -55,18 +55,13 @@ func (s *cronjobsStatus) toTable() Table {
 
 	rows := [][]string{}
 	for _, item := range s.cronjobs {
-		neverSuccessful, failed100times := cronjobStatus(item)
-		status := "Unknown"
-		lastSucessful := ""
+		status := ""
 
-		if neverSuccessful {
-			status = "Never successful"
-			lastSucessful = ""
-		} else if failed100times {
+		if failed100times(item) {
 			status = "Too many missed start time (> 100)"
-			lastSucessful = item.Status.LastSuccessfulTime.String()
 		}
 
+		lastSucessful := item.Status.LastSuccessfulTime.String()
 		row := []string{item.Name, item.Namespace, status, lastSucessful}
 		rows = append(rows, row)
 	}
@@ -86,8 +81,9 @@ func (s *cronjobsStatus) add(cronjobs []batchv1.CronJob) {
 			continue
 		}
 
-		neverSuccessful, failed100times := cronjobStatus(item)
-		healthy := !neverSuccessful && !failed100times
+		// Health checking the job and pod (created by the cronjob) is skiped, because jobs and pods are checked separately.
+		healthy := !failed100times(item)
+
 		if healthy {
 			s.healthy++
 			continue
@@ -102,18 +98,14 @@ func (s *cronjobsStatus) add(cronjobs []batchv1.CronJob) {
 	}
 }
 
-func cronjobStatus(item batchv1.CronJob) (neverSuccessful, failed100times bool) {
+func failed100times(item batchv1.CronJob) bool {
 	if item.Status.LastSuccessfulTime == nil && item.Status.LastScheduleTime == nil {
-		return false, false
-	}
-
-	if item.Status.LastSuccessfulTime == nil {
-		return true, false
+		return false
 	}
 
 	next100RunTimes := cronexpr.MustParse(item.Spec.Schedule).NextN(item.Status.LastSuccessfulTime.Time, 100)
 	the100ScheduleTime := next100RunTimes[len(next100RunTimes)-1]
-	failed100times = the100ScheduleTime.Before(time.Now())
+	failed100times := the100ScheduleTime.Before(time.Now())
 
-	return false, failed100times
+	return failed100times
 }
