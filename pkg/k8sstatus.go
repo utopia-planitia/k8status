@@ -68,6 +68,7 @@ func Run(ctx context.Context, client *KubernetesClient, colored bool) error {
 			check, err := newCheck(ctx, client)
 			if err != nil {
 				result.err = err
+				result.exitCode = 1
 				future <- result
 				return
 			}
