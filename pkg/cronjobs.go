@@ -103,6 +103,12 @@ func failed100times(item batchv1.CronJob) bool {
 		return false
 	}
 
+	// TODO: this early return avoids panicking with next100RunTimes when LastSuccessfulTime == nil
+	//       and it passes the tests but is it the correct behaviour?
+	if item.Status.LastSuccessfulTime == nil {
+		return true
+	}
+
 	next100RunTimes := cronexpr.MustParse(item.Spec.Schedule).NextN(item.Status.LastSuccessfulTime.Time, 100)
 	the100ScheduleTime := next100RunTimes[len(next100RunTimes)-1]
 	failed100times := the100ScheduleTime.Before(time.Now())
