@@ -1,6 +1,7 @@
 package k8status
 
 import (
+	"io"
 	"testing"
 	"time"
 
@@ -235,6 +236,11 @@ func Test_cronjobsStatus_ExitCode(t *testing.T) {
 			got := status.ExitCode()
 			if got != tt.want {
 				t.Errorf("printCronjobStatus() = %v, want %v", got, tt.want)
+			}
+
+			err := status.Details(io.Discard, false)
+			if err != nil {
+				t.Errorf("printCronjobStatusDetails() = %v, want %v", err, "success")
 			}
 		})
 	}

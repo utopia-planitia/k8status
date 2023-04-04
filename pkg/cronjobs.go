@@ -61,7 +61,11 @@ func (s *cronjobsStatus) toTable() Table {
 			status = "Too many missed start time (> 100)"
 		}
 
-		lastSucessful := item.Status.LastSuccessfulTime.String()
+		lastSucessful := "Never"
+		if item.Status.LastSuccessfulTime != nil {
+			lastSucessful = item.Status.LastSuccessfulTime.String()
+		}
+
 		row := []string{item.Name, item.Namespace, status, lastSucessful}
 		rows = append(rows, row)
 	}
