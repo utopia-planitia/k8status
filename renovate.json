@@ -23,7 +23,7 @@
         ]
     },
     "separateMinorPatch": true,
-    "dependencyDashboard": false,
+    "dependencyDashboard": true,
     "regexManagers": [
         {
             "fileMatch": [
