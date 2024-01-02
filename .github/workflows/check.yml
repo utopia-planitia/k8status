@@ -22,7 +22,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4
         with:
-          go-version: '1.20.5' # renovate: datasource=golang-version depName=go
+          go-version: '1.20.12' # renovate: datasource=golang-version depName=go
       - name: Print go version
         run: go version
       - name: Execute go tests 
