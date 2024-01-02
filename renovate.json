@@ -27,33 +27,11 @@
     "regexManagers": [
         {
             "fileMatch": [
-                "^.github/workflows/check.yml$"
+                ".*"
             ],
             "matchStrings": [
-                "version: (?<currentValue>.*?)\n"
-            ],
-            "depNameTemplate": "golangci/golangci-lint",
-            "datasourceTemplate": "github-tags"
-        },
-        {
-            "fileMatch": [
-                "^.github/workflows/check.yml$"
-            ],
-            "matchStrings": [
-                "go-version: '(?<currentValue>.*?)'\n"
-            ],
-            "depNameTemplate": "golang/go",
-            "datasourceTemplate": "github-tags"
-        },
-        {
-            "fileMatch": [
-                "^.github/workflows/check.yml$"
-            ],
-            "matchStrings": [
-                "tilt: '(?<currentValue>.*?)'\n"
-            ],
-            "depNameTemplate": "tilt-dev/tilt",
-            "datasourceTemplate": "github-tags"
+                "\\s+[\"']?(?<currentValue>[^\\s\"']+?)[\"']?\\s+# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)"
+            ]
         },
         {
             "fileMatch": [

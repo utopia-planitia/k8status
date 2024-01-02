@@ -22,12 +22,12 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4
         with:
-          go-version: '1.19.3'
+          go-version: '1.19.3' # renovate: datasource=golang-version depName=go
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7 # v4
         with:
           distribution: goreleaser
-          version: latest
+          version: v1.23.0 # renovate: datasource=golang-version depName=go
           args: release --clean ${{ env.flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
