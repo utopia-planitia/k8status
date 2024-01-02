@@ -1,26 +1,26 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
-      "config:base"
+        "config:base"
     ],
     "pinDigests": true,
     "postUpdateOptions": [
-      "gomodTidy",
-      "gomodMassage",
-      "gomodUpdateImportPaths"
+        "gomodTidy",
+        "gomodMassage",
+        "gomodUpdateImportPaths"
     ],
     "prHourlyLimit": 0,
     "labels": [
-      "renovate-bot"
+        "renovate-bot"
     ],
     "automerge": true,
     "automergeType": "pr",
     "platformAutomerge": true,
     "postUpgradeTasks": {
-      "commands": [],
-      "fileFilters": [
-        "**/**"
-      ]
+        "commands": [],
+        "fileFilters": [
+            "**/**"
+        ]
     },
     "separateMinorPatch": true,
     "dependencyDashboard": false,
@@ -66,19 +66,19 @@
     ],
     "packageRules": [
         {
-          "matchPackagePatterns": [
-            "^k8s.io/client-go$"
-          ],
-          "matchUpdateTypes": [
-            "major"
-          ],
-          "enabled": false
+            "matchPackagePatterns": [
+                "^k8s.io/client-go$"
+            ],
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "enabled": false
         },
         {
-            "matchPackageNames": ["golang/go"],
+            "matchPackageNames": [
+                "golang/go"
+            ],
             "extractVersion": "^go(?<version>.*)$"
         }
     ]
-  }
-  
-  
+}
