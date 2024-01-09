@@ -1,6 +1,6 @@
 module gitlab.com/utopia-planitia/k8status
 
-go 1.21.5
+go 1.21.6
 
 require (
 	github.com/aptible/supercronic v0.2.29
