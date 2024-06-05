@@ -90,6 +90,11 @@ func (s *statefulsetsStatus) add(statefulsets []appsv1.StatefulSet) {
 }
 
 func statefulsetIsHealthy(item appsv1.StatefulSet) bool {
+	if item.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+		// workaround for a bug in Kubernetes: https://github.com/kubernetes/kubernetes/issues/106055
+		return item.Status.Replicas == item.Status.ReadyReplicas &&
+			item.Status.Replicas == item.Status.UpdatedReplicas
+	}
 	return item.Status.Replicas == item.Status.ReadyReplicas &&
 		item.Status.Replicas == item.Status.CurrentReplicas &&
 		item.Status.Replicas == item.Status.UpdatedReplicas
