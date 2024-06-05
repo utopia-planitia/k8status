@@ -49,13 +49,13 @@ func (s *volumesStatus) ExitCode() int {
 }
 
 func (s *volumesStatus) toTable() Table {
-	header := []string{"Volume", "Namespace", "Phase"}
+	header := []string{"Namespace", "Volume", "Phase"}
 
 	rows := [][]string{}
 	for _, item := range s.volumes {
 		row := []string{
-			item.Name,
 			item.Namespace,
+			item.Name,
 			string(item.Status.Phase),
 		}
 		rows = append(rows, row)

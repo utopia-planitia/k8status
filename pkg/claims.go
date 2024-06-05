@@ -61,11 +61,11 @@ func (s *volumeClaimsStatus) ExitCode() int {
 }
 
 func (s *volumeClaimsStatus) toTable() Table {
-	header := []string{"Volume Claim", "Namespace", "Phase"}
+	header := []string{"Namespace", "Volume Claim", "Phase"}
 
 	rows := [][]string{}
 	for _, item := range s.claims {
-		row := []string{item.Name, item.Namespace, string(item.Status.Phase)}
+		row := []string{item.Namespace, item.Name, string(item.Status.Phase)}
 		rows = append(rows, row)
 	}
 

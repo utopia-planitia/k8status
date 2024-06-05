@@ -50,13 +50,13 @@ func (s *daemonsetsStatus) ExitCode() int {
 }
 
 func (s *daemonsetsStatus) toTable() Table {
-	header := []string{"Daemonset", "Namespace", "Scheduled", "Current", "Ready", "Up-to-date", "Available"}
+	header := []string{"Namespace", "Daemonset", "Scheduled", "Current", "Ready", "Up-to-date", "Available"}
 
 	rows := [][]string{}
 	for _, item := range s.daemonSets {
 		row := []string{
-			item.Name,
 			item.Namespace,
+			item.Name,
 			fmt.Sprintf("%d", item.Status.DesiredNumberScheduled),
 			fmt.Sprintf("%d", item.Status.CurrentNumberScheduled),
 			fmt.Sprintf("%d", item.Status.NumberReady),

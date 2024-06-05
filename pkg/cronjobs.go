@@ -51,7 +51,7 @@ func (s *cronjobsStatus) ExitCode() int {
 }
 
 func (s *cronjobsStatus) toTable() Table {
-	header := []string{"Cronjob", "Namespace", "Status", "Last Success"}
+	header := []string{"Namespace", "Cronjob", "Status", "Last Success"}
 
 	rows := [][]string{}
 	for _, item := range s.cronjobs {
@@ -66,7 +66,7 @@ func (s *cronjobsStatus) toTable() Table {
 			lastSucessful = item.Status.LastSuccessfulTime.String()
 		}
 
-		row := []string{item.Name, item.Namespace, status, lastSucessful}
+		row := []string{item.Namespace, item.Name, status, lastSucessful}
 		rows = append(rows, row)
 	}
 

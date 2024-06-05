@@ -50,13 +50,13 @@ func (s *deploymentsStatus) ExitCode() int {
 }
 
 func (s *deploymentsStatus) toTable() Table {
-	header := []string{"Deployment", "Namespace", "Replicas", "Available", "Up-to-date", "Ready"}
+	header := []string{"Namespace", "Deployment", "Replicas", "Available", "Up-to-date", "Ready"}
 
 	rows := [][]string{}
 	for _, item := range s.deployments {
 		row := []string{
-			item.Name,
 			item.Namespace,
+			item.Name,
 			fmt.Sprintf("%d", item.Status.Replicas),
 			fmt.Sprintf("%d", item.Status.AvailableReplicas),
 			fmt.Sprintf("%d", item.Status.UpdatedReplicas),

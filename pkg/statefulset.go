@@ -50,13 +50,13 @@ func (s *statefulsetsStatus) ExitCode() int {
 }
 
 func (s *statefulsetsStatus) toTable() Table {
-	header := []string{"Statefulset", "Namespace", "Replicas", "Ready", "Current", "Updated"}
+	header := []string{"Namespace", "Statefulset", "Replicas", "Ready", "Current", "Updated"}
 
 	rows := [][]string{}
 	for _, item := range s.statefulsets {
 		row := []string{
-			item.Name,
 			item.Namespace,
+			item.Name,
 			fmt.Sprintf("%d", item.Status.Replicas),
 			fmt.Sprintf("%d", item.Status.ReadyReplicas),
 			fmt.Sprintf("%d", item.Status.CurrentReplicas),
