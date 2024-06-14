@@ -1,9 +1,9 @@
 module gitlab.com/utopia-planitia/k8status
 
-go 1.22.2
+go 1.22.4
 
 require (
-	github.com/aptible/supercronic v0.2.29
+	github.com/aptible/supercronic v0.2.30
 	github.com/jwalton/go-supportscolor v1.2.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/urfave/cli/v2 v2.27.2

@@ -1,5 +1,5 @@
-github.com/aptible/supercronic v0.2.29 h1:I+3RoDspAs/ySQO+MQd6genE07csDV/ErhFOtACT5oo=
-github.com/aptible/supercronic v0.2.29/go.mod h1:84URRjD4iBPig2KhnSB5kWJIk8PTxKwH3VUSTF1xJYg=
+github.com/aptible/supercronic v0.2.30 h1:NlKD4fU9HM3MsT4NqMJsTt4dpuJRSoZnPK3cmZwvp6U=
+github.com/aptible/supercronic v0.2.30/go.mod h1:4mywElPusGmnm0H+F2QdVj5qbh/U43qKN+BkNkTYIcs=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/cpuguy83/go-md2man/v2 v2.0.4 h1:wfIWP927BUkWJb2NmU/kNDYIBTh/ziUX91+lVfRxZq4=
