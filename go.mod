@@ -1,4 +1,4 @@
-module gitlab.com/utopia-planitia/k8status
+module github.com/utopia-planitia/k8status
 
 go 1.23.0
 

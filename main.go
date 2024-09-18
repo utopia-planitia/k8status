@@ -8,7 +8,7 @@ import (
 
 	supportscolor "github.com/jwalton/go-supportscolor"
 	cli "github.com/urfave/cli/v2"
-	k8status "gitlab.com/utopia-planitia/k8status/pkg"
+	k8status "github.com/utopia-planitia/k8status/pkg"
 )
 
 var (
