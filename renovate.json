@@ -47,13 +47,13 @@
     ],
     "packageRules": [
         {
-            "matchPackagePatterns": [
-                "^k8s.io/client-go$"
-            ],
             "matchUpdateTypes": [
                 "major"
             ],
-            "enabled": false
+            "enabled": false,
+            "matchPackageNames": [
+                "/^k8s.io/client-go$/"
+            ]
         },
         {
             "matchPackageNames": [
