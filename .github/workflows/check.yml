@@ -12,7 +12,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5
         with:
-          go-version: '1.24.1' # renovate: datasource=golang-version depName=go
+          go-version: '1.24.2' # renovate: datasource=golang-version depName=go
           cache: false
       - name: Lint go code with golangci-lint
         uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
@@ -27,7 +27,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5
         with:
-          go-version: '1.24.1' # renovate: datasource=golang-version depName=go
+          go-version: '1.24.2' # renovate: datasource=golang-version depName=go
       - name: Print go version
         run: go version
       - name: Execute go tests 
