@@ -7,9 +7,9 @@ require (
 	github.com/jwalton/go-supportscolor v1.2.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/urfave/cli/v2 v2.27.6
-	k8s.io/api v0.32.3
-	k8s.io/apimachinery v0.32.3
-	k8s.io/client-go v0.32.3
+	k8s.io/api v0.32.4
+	k8s.io/apimachinery v0.32.4
+	k8s.io/client-go v0.32.4
 )
 
 require (
