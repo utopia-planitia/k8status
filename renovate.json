@@ -28,8 +28,8 @@
     "customManagers": [
         {
             "customType": "regex",
-            "fileMatch": [
-                ".*"
+            "managerFilePatterns": [
+                "/.*/"
             ],
             "matchStrings": [
                 "\\s+[\"']?(?<currentValue>[^\\s\"']+?)[\"']?\\s+# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)"
@@ -37,8 +37,8 @@
         },
         {
             "customType": "regex",
-            "fileMatch": [
-                "(^|/|\\.)Makefile$"
+            "managerFilePatterns": [
+                "/(^|/|\\.)Makefile$/"
             ],
             "matchStrings": [
                 "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s.+?_VERSION[ :=]+\"?(?<currentValue>.+?)\"?\\s"
