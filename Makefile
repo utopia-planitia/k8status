@@ -10,7 +10,7 @@ lint:
 		golangci-lint --timeout=540s run ./...
 
 # renovate: datasource=docker depName=docker.io/library/golang
-GOLANG_VERSION = 1.24.4-alpine
+GOLANG_VERSION = 1.24.5-alpine
 .PHONY: test
 test:
 	docker run \
