@@ -15,7 +15,7 @@ jobs:
           go-version: '1.25.4' # renovate: datasource=golang-version depName=go
           cache: false
       - name: Lint go code with golangci-lint
-        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           version: v1.64.8 # renovate: datasource=github-tags depName=golangci/golangci-lint
   go-test:
