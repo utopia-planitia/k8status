@@ -22,7 +22,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
-          go-version: '1.25.6' # renovate: datasource=golang-version depName=go
+          go-version: '1.25.7' # renovate: datasource=golang-version depName=go
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
         with:
