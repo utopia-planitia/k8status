@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	supportscolor "github.com/jwalton/go-supportscolor"
-	cli "github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v3"
 	k8status "gitlab.com/utopia-planitia/k8status/pkg"
 )
 
