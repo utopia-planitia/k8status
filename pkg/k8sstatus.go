@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 type newStatus func(ctx context.Context, client *KubernetesClient) (status, error)
